@@ -45,16 +45,41 @@ function makeApiRequest(request, sendResponse) {
             contents: [{
                 parts: [{ text: `Descrição do Projeto: ${request.descricaoProjeto}\nNome do Cliente: ${request.nomeCliente}\n${request.valorTempoMedio}` }]
             }],
+            generationConfig: {
+                temperature: 0.9,
+                topK: 1,
+                topP: 1,
+                maxOutputTokens: 2048
+            },
+            safetySettings: [
+                {
+                    category: "HARM_CATEGORY_HARASSMENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_HATE_SPEECH",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                },
+                {
+                    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    threshold: "BLOCK_MEDIUM_AND_ABOVE"
+                }
+            ],
+            tools: [],
             systemInstruction: {
-                contents: [{
-                    parts: [{text:instructions}]
-                }]
+                parts: [{text:instructions}]
             }
         })
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error(`Erro na requisição: ${response.json()}`);
+            return response.json().then(errorData => {
+                throw new Error(`Erro na requisição: ${response.status} - ${JSON.stringify(errorData)}`);
+            });
         }
         return response.json();
     })

@@ -23,7 +23,7 @@
   "commands": {
     "run-extraction": {
       "suggested_key": {
-        "default": "Ctrl+Shift+X",
+        "default": "Ctrl+Shift+K",
         "mac": "Command+Shift+X"
       },
       "description": "Executar extração e requisição"

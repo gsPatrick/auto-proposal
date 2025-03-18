@@ -1,15 +1,30 @@
 // Função para extrair dados da página (adapte para sua página!)
 function extractData() {
-    const nomeCliente = document.getElementsByClassName('name')[1].innerText;
-    const descricaoProjeto = document.getElementsByClassName('item-text project-description formatted-text')[0].innerText;
-    const valorTempoMedio = document.getElementsByClassName('generic information')[0].innerText;
+  const nomeCliente = document.getElementsByClassName('name')[1].innerText;
+  const descricaoProjeto = document.getElementsByClassName('item-text project-description formatted-text')[0].innerText;
+  const valorTempoMedio = document.getElementsByClassName('generic information')[0].innerText;
 
-    if (nomeCliente && descricaoProjeto && valorTempoMedio) {
-      return { nomeCliente, descricaoProjeto, valorTempoMedio };
-    } else {
-      console.error('Não foi possível encontrar todos os dados necessários na página.');
-      return null; // Ou lança um erro.
-    }
+  if (!nomeCliente || !descricaoProjeto || !valorTempoMedio) {
+      console.error('Não foi possível encontrar todos os elementos necessários na página.');
+      return null;
+  }
+
+  if (!nomeCliente || !descricaoProjeto || !valorTempoMedio) {
+      console.error('Um ou mais dados extraídos estão vazios.');
+      return null;
+  }
+
+  return { nomeCliente, descricaoProjeto, valorTempoMedio };
+}
+
+function cleanString(inputString) {
+  // Remove todos os "**" (dois asteriscos) da string.
+  const withoutBold = inputString.replace(/\*\*/g, '');
+
+  // Remove todos os "#" (cerquilhas) da string.
+  const withoutHashtags = withoutBold.replace(/#/g, '');
+
+  return withoutHashtags;
 }
 
 // Listener para mensagens do background script
@@ -25,7 +40,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }, response => {
         if (response.success) {
           const resultadoDiv = document.getElementById('proposta')
-          resultadoDiv.value = response.data.candidates[0].content.parts[0].text;
+          resultadoDiv.value = cleanString(response.data.candidates[0].content.parts[0].text);
         } else {
           console.error("Erro ao fazer a requisição:", response.error);
           console.error(response);
