@@ -2,9 +2,10 @@
 function extractData() {
   const nomeCliente = document.getElementsByClassName('name')[1].innerText;
   const descricaoProjeto = document.getElementsByClassName('item-text project-description formatted-text')[0].innerText;
-  const valorTempoMedio = document.getElementsByClassName('generic information')[0].innerText;
+  let valorTempoMedio = document.getElementsByClassName('generic information')[0]
+  valorTempoMedio = valorTempoMedio ? valorTempoMedio.innerText : "Projeto não tem propostas o bastante para cálculo de valor/prazo médio. Estipule um de acordo com a descrição do projeto, sempre tendendo para baixos preços. Geralmente projetos para wordpress estão com valores menores do que 1000.";
 
-  if (!nomeCliente || !descricaoProjeto || !valorTempoMedio) {
+  if (!nomeCliente || !descricaoProjeto) {
       console.error('Não foi possível encontrar todos os elementos necessários na página.');
       return null;
   }
