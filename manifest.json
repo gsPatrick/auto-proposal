@@ -5,7 +5,9 @@
   "version": "1.0",
   "permissions": [
     "activeTab",
-    "storage",
+    "storage"
+  ],
+  "host_permissions": [
     "https://generativelanguage.googleapis.com/*"
   ],
   "action": {
