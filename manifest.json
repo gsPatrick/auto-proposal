@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Auto-Proposal",
-  "description": "Uma extensão para o 99freelas que coleta as informações do projeto e do cliente, faz uma requisição API pro Gemini e insere a resposta.",
-  "version": "1.0",
+  "name": "Auto-Proposal AI (Sidebar Edition)",
+  "description": "Sidebar inteligente para o 99freelas que filtra projetos e gera propostas usando o Gemini.",
+  "version": "2.0",
   "permissions": [
     "activeTab",
     "storage"
@@ -11,7 +11,6 @@
     "https://generativelanguage.googleapis.com/*"
   ],
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "ap16.png",
       "48": "ap48.png",
@@ -25,20 +24,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "matches": ["*://www.99freelas.com.br/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ],
   "background": {
     "service_worker": "background.js"
-  },
-  "commands": {
-    "run-extraction": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+K",
-        "mac": "Command+Shift+X"
-      },
-      "description": "Executar extração e requisição"
-    }
   }
 }
