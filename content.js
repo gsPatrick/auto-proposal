@@ -1,15 +1,29 @@
 /**
  * content.js
  * 
- * Versão: 3.0 (macOS Design System)
- * - Z-Index Máximo (Acima do Zendesk)
- * - Glassmorphism Real (Blur + Saturation)
- * - UI Cinematográfica
+ * Versão: 3.4 (Shortcuts Engine & Style Fixes)
+ * - Correção do background branco nos inputs/textareas (Focus state).
+ * - Sistema de configuração de atalhos customizáveis (2 teclas).
+ * - Persistência total de configurações e atalhos.
  */
 
 // -----------------------------------------------------------------------------
 // CONSTANTES & ESTADO GLOBAL
 // -----------------------------------------------------------------------------
+
+const SYSTEM_INSTRUCTION_TEMPLATE = `
+Você é um filtro de projetos experiente e tech recruiter.
+Sua missão é analisar uma lista de projetos e selecionar apenas os melhores baseados no PERFIL DO USUÁRIO fornecido.
+
+REGRAS DE SAÍDA (IMPORTANTE):
+1. Retorne APENAS um JSON Array de objetos.
+2. O formato deve ser estritamente: [{"id": "string", "summary": "string"}].
+3. No campo "summary", escreva um resumo curto (max 30 palavras) vendendo o projeto para o candidato.
+4. Use formatação Markdown no resumo (negrito **texto** para tecnologias/skills principais).
+5. Não inclua explicações, intro ou markdown code blocks (\`\`\`json). Apenas o JSON cru.
+
+PERFIL DO USUÁRIO PARA FILTRAGEM:
+`;
 
 const STATE = {
     isSidebarOpen: false,
@@ -17,8 +31,12 @@ const STATE = {
     scrapedProjects: [],
     settings: {
         apiKey: '',
-        filterPrompt: 'Você é um filtro de projetos experiente. Analise a lista de projetos abaixo e selecione apenas aqueles que se encaixam no perfil de um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Ignore projetos de design puro, marketing ou redação. Retorne APENAS um JSON array com os IDs dos projetos selecionados, sem explicações.',
-        proposalPrompt: 'Você é um especialista em vendas consultivas. Escreva uma proposta comercial curta, direta e persuasiva para o projeto abaixo. Foque em resolver o problema do cliente. Use tom profissional mas próximo. Não coloque placeholders.'
+        userProfile: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs. Ignore design gráfico, redação e marketing puro.',
+        proposalPrompt: 'Você é um especialista em vendas consultivas. Escreva uma proposta comercial curta, direta e persuasiva para o projeto abaixo. Foque em resolver o problema do cliente. Use tom profissional mas próximo. Não coloque placeholders.',
+        // Novo objeto de atalhos
+        shortcuts: {
+            analyze: { modifier: 'Shift', key: 'P' }
+        }
     }
 };
 
@@ -37,23 +55,14 @@ function injectStyles() {
 
         :root {
             /* Palette macOS Dark */
-            --ap-glass-bg: rgba(20, 20, 25, 0.65); /* Transparência profunda */
+            --ap-glass-bg: rgba(20, 20, 25, 0.65);
             --ap-glass-border: rgba(255, 255, 255, 0.12);
-            --ap-glass-highlight: rgba(255, 255, 255, 0.05);
-            
             --ap-text-primary: #ffffff;
             --ap-text-secondary: rgba(255, 255, 255, 0.55);
-            
             --ap-accent-gradient: linear-gradient(135deg, #0A84FF 0%, #007AFF 100%);
             --ap-accent-color: #0A84FF;
-            
             --ap-shadow-elevation: 0 20px 50px rgba(0,0,0,0.6);
-            --ap-shadow-subtle: 0 4px 12px rgba(0,0,0,0.2);
-            
-            --ap-radius-lg: 18px;
             --ap-radius-md: 12px;
-            --ap-radius-sm: 8px;
-            
             --ap-font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
             --ap-ease: cubic-bezier(0.32, 0.72, 0, 1);
         }
@@ -62,25 +71,19 @@ function injectStyles() {
         #ap-sidebar {
             position: fixed;
             top: 0;
-            right: -420px; /* Escondido */
+            right: -420px;
             width: 420px;
             height: 100vh;
-            
-            /* O Segredo do Glassmorphism */
             background: var(--ap-glass-bg);
             backdrop-filter: blur(50px) saturate(180%);
             -webkit-backdrop-filter: blur(50px) saturate(180%);
-            
             border-left: 1px solid var(--ap-glass-border);
             box-shadow: var(--ap-shadow-elevation);
-            
-            z-index: 2147483647; /* MAX INT - Acima de tudo (Zendesk, etc) */
+            z-index: 2147483647;
             transition: right 0.5s var(--ap-ease);
-            
             display: flex;
             flex-direction: column;
             font-family: var(--ap-font);
-            -webkit-font-smoothing: antialiased;
             color: var(--ap-text-primary);
         }
 
@@ -91,22 +94,19 @@ function injectStyles() {
         /* --- HANDLE (GATILHO) --- */
         #ap-sidebar-handle {
             position: absolute;
-            left: -24px; /* Mais discreto */
+            left: -24px;
             top: 50%;
             transform: translateY(-50%) scale(0.8);
             width: 48px;
             height: 96px;
-            
             background: rgba(30, 30, 35, 0.8);
             backdrop-filter: blur(20px);
             border: 1px solid var(--ap-glass-border);
-            border-radius: 24px; /* Pill shape */
-            
+            border-radius: 24px;
             display: flex;
             align-items: center;
             justify-content: flex-start;
             padding-left: 8px;
-            
             cursor: pointer;
             opacity: 0;
             transition: all 0.3s var(--ap-ease);
@@ -140,7 +140,6 @@ function injectStyles() {
             margin: 0;
             font-size: 18px;
             font-weight: 600;
-            letter-spacing: -0.02em;
             background: linear-gradient(to right, #fff, #ccc);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -162,7 +161,6 @@ function injectStyles() {
         .ap-icon-btn:hover {
             background: rgba(255,255,255,0.1);
             color: #fff;
-            transform: rotate(15deg);
         }
 
         /* --- CONTENT AREA --- */
@@ -175,19 +173,9 @@ function injectStyles() {
             gap: 16px;
         }
         
-        .ap-content::-webkit-scrollbar {
-            width: 6px;
-        }
-        .ap-content::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .ap-content::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-        }
-        .ap-content::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.25);
-        }
+        .ap-content::-webkit-scrollbar { width: 6px; }
+        .ap-content::-webkit-scrollbar-track { background: transparent; }
+        .ap-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
 
         .ap-empty-state {
             margin-top: 80px;
@@ -198,7 +186,7 @@ function injectStyles() {
             padding: 0 20px;
         }
 
-        /* --- PROJECT CARDS (CINEMATIC) --- */
+        /* --- PROJECT CARDS --- */
         .ap-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--ap-glass-border);
@@ -210,33 +198,18 @@ function injectStyles() {
             overflow: hidden;
         }
 
-        .ap-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 100%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
         .ap-card:hover {
             background: rgba(255, 255, 255, 0.07);
             transform: translateY(-2px) scale(1.01);
             border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-        }
-
-        .ap-card:hover::before {
-            opacity: 1;
         }
 
         .ap-card-title {
             font-size: 15px;
             font-weight: 600;
-            color: #5AA9FF; /* Azul mais claro para contraste */
+            color: #5AA9FF;
             margin-bottom: 10px;
             line-height: 1.3;
-            letter-spacing: -0.01em;
         }
 
         .ap-card-desc {
@@ -244,25 +217,34 @@ function injectStyles() {
             color: rgba(255, 255, 255, 0.8);
             line-height: 1.5;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 4; 
             -webkit-box-orient: vertical;
             overflow: hidden;
             transition: max-height 0.6s var(--ap-ease);
-            max-height: 60px;
+            max-height: 85px;
         }
 
         .ap-card:hover .ap-card-desc {
             -webkit-line-clamp: unset;
             max-height: 600px;
-            transition-delay: 0.4s;
+            transition-delay: 0.2s;
             color: #fff;
         }
+        
+        /* Markdown Styles inside Card */
+        .ap-card-desc strong, .ap-card-desc b { color: #fff; font-weight: 700; }
+        .ap-card-desc em, .ap-card-desc i { color: #ccc; font-style: italic; }
+        .ap-card-desc code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+        .ap-card-desc ul { padding-left: 16px; margin: 4px 0; }
 
         /* --- FOOTER & BUTTONS --- */
         .ap-footer {
-            padding: 24px;
+            padding: 16px 24px;
             border-top: 1px solid var(--ap-glass-border);
             background: rgba(0,0,0,0.2);
+            text-align: center;
+            font-size: 12px;
+            color: var(--ap-text-secondary);
         }
 
         .ap-btn-primary {
@@ -273,37 +255,17 @@ function injectStyles() {
             border: none;
             border-radius: var(--ap-radius-md);
             font-weight: 600;
-            font-size: 14px;
-            letter-spacing: -0.01em;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(10, 132, 255, 0.3);
-            position: relative;
-            overflow: hidden;
         }
 
-        .ap-btn-primary:hover {
-            box-shadow: 0 6px 20px rgba(10, 132, 255, 0.5);
-            transform: translateY(-1px);
-        }
-        
-        .ap-btn-primary:active {
-            transform: scale(0.98);
-        }
-
-        .ap-btn-loading {
-            filter: grayscale(0.5);
-            opacity: 0.8;
-            cursor: not-allowed;
-        }
-
-        /* --- MODAL SETTINGS (COMPACT & MODERN) --- */
+        /* --- MODAL SETTINGS --- */
         #ap-modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.4);
             backdrop-filter: blur(8px);
-            z-index: 2147483648; /* Acima da Sidebar */
+            z-index: 2147483648;
             display: none;
             align-items: center;
             justify-content: center;
@@ -317,9 +279,9 @@ function injectStyles() {
         }
 
         .ap-modal {
-            background: #1e1e1e; /* Solid dark for modal readability */
+            background: #1e1e1e;
             width: 420px;
-            border-radius: var(--ap-radius-lg);
+            border-radius: 18px;
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 25px 60px rgba(0,0,0,0.5);
             padding: 28px;
@@ -331,36 +293,13 @@ function injectStyles() {
             transition: transform 0.3s var(--ap-ease);
         }
         
-        #ap-modal-overlay.show .ap-modal {
-            transform: scale(1);
-        }
+        #ap-modal-overlay.show .ap-modal { transform: scale(1); }
 
-        .ap-modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        
-        .ap-modal-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
+        .ap-modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .ap-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
 
-        .ap-input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .ap-input-group label {
-            font-size: 11px;
-            text-transform: uppercase;
-            color: var(--ap-text-secondary);
-            font-weight: 700;
-            letter-spacing: 0.8px;
-        }
+        .ap-input-group { display: flex; flex-direction: column; gap: 8px; }
+        .ap-input-group label { font-size: 11px; text-transform: uppercase; color: var(--ap-text-secondary); font-weight: 700; }
 
         .ap-input, .ap-textarea {
             background: rgba(0,0,0,0.3);
@@ -370,19 +309,39 @@ function injectStyles() {
             color: white;
             font-family: var(--ap-font);
             font-size: 13px;
-            transition: border 0.2s;
         }
-
+        
+        /* FIX: Force Dark Background on Focus */
         .ap-input:focus, .ap-textarea:focus {
-            outline: none;
-            border-color: var(--ap-accent-color);
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.5) !important;
+            color: white !important;
+            outline: 1px solid var(--ap-accent-color);
         }
 
-        .ap-textarea {
-            min-height: 80px;
-            line-height: 1.4;
+        /* Shortcut Button */
+        .ap-shortcut-btn {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-align: center;
         }
+        .ap-shortcut-btn:hover {
+            background: rgba(255,255,255,0.2);
+            border-color: #fff;
+        }
+        .ap-shortcut-btn.recording {
+            background: var(--ap-accent-color);
+            border-color: var(--ap-accent-color);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
         /* --- TOAST (PILL) --- */
         #ap-toast {
@@ -398,7 +357,7 @@ function injectStyles() {
             box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             z-index: 2147483649;
             transition: transform 0.5s var(--ap-ease);
             font-size: 13px;
@@ -406,15 +365,37 @@ function injectStyles() {
             border: 1px solid rgba(255,255,255,0.1);
         }
         
-        #ap-toast.show {
-            transform: translateX(-50%) translateY(0);
-        }
+        #ap-toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Spin Animation */
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .ap-spin { animation: spin 1s infinite linear; display: block; }
     `;
     document.head.appendChild(style);
 }
 
 // -----------------------------------------------------------------------------
-// 2. COMPONENTES DE UI (DOM)
+// 2. HELPERS: MARKDOWN PARSER
+// -----------------------------------------------------------------------------
+
+function parseSimpleMarkdown(text) {
+    if (!text) return '';
+    
+    let html = text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/^\s*-\s+(.*)$/gm, '• $1<br>')
+        .replace(/\n/g, '<br>');
+
+    return html;
+}
+
+// -----------------------------------------------------------------------------
+// 3. COMPONENTES DE UI (DOM)
 // -----------------------------------------------------------------------------
 
 function createSidebar() {
@@ -423,7 +404,7 @@ function createSidebar() {
     const sidebar = document.createElement('div');
     sidebar.id = 'ap-sidebar';
     sidebar.innerHTML = `
-        <!-- Handle (Pill Style) -->
+        <!-- Handle -->
         <div id="ap-sidebar-handle" title="Abrir Auto-Proposal">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </div>
@@ -440,25 +421,37 @@ function createSidebar() {
         <div id="ap-project-list" class="ap-content">
             <div class="ap-empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                <p>Nenhum projeto analisado.</p>
-                <p>Clique em <b>"Analisar Página"</b> para a IA encontrar as melhores oportunidades.</p>
+                <p>Use o atalho para analisar.</p>
             </div>
         </div>
 
         <!-- Footer -->
         <div class="ap-footer">
-            <button id="ap-analyze-btn" class="ap-btn-primary">
-                ✨ Analisar Página com IA
-            </button>
+            Auto-Proposal AI v3.4
         </div>
     `;
 
     document.body.appendChild(sidebar);
 
     // Listeners
-    document.getElementById('ap-sidebar-handle').addEventListener('click', toggleSidebar);
+    document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => {
+        e.stopPropagation();
+        openSidebar();
+    });
     document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
-    document.getElementById('ap-analyze-btn').addEventListener('click', runProjectAnalysis);
+    
+    // Click Outside Logic
+    document.addEventListener('click', (e) => {
+        const sidebar = document.getElementById('ap-sidebar');
+        const handle = document.getElementById('ap-sidebar-handle');
+        const settingsModal = document.getElementById('ap-modal-overlay');
+        
+        if (STATE.isSidebarOpen) {
+            if (!sidebar.contains(e.target) && !handle.contains(e.target) && !settingsModal.contains(e.target)) {
+                closeSidebar();
+            }
+        }
+    });
 }
 
 function createSettingsModal() {
@@ -481,13 +474,22 @@ function createSettingsModal() {
             </div>
 
             <div class="ap-input-group">
-                <label>Prompt de Filtragem (Persona)</label>
-                <textarea id="ap-filter-prompt" class="ap-textarea" placeholder="Ex: Sou Dev React Senior..."></textarea>
+                <label>Seu Perfil Profissional</label>
+                <textarea id="ap-user-profile" class="ap-textarea" placeholder="Ex: Sou desenvolvedor React Sênior..."></textarea>
             </div>
 
             <div class="ap-input-group">
-                <label>Prompt de Proposta (Estilo de Venda)</label>
+                <label>Prompt de Proposta</label>
                 <textarea id="ap-proposal-prompt" class="ap-textarea" placeholder="Ex: Proposta curta e direta..."></textarea>
+            </div>
+
+            <!-- Atalhos -->
+            <div class="ap-input-group">
+                <label>Atalhos</label>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 13px; color: #ddd;">Analisar Projetos</span>
+                    <button id="ap-shortcut-analyze" class="ap-shortcut-btn">Shift + P</button>
+                </div>
             </div>
 
             <button id="ap-save-settings" class="ap-btn-primary">Salvar Alterações</button>
@@ -498,6 +500,11 @@ function createSettingsModal() {
 
     document.getElementById('ap-close-modal').addEventListener('click', closeSettings);
     document.getElementById('ap-save-settings').addEventListener('click', saveSettings);
+    
+    // Shortcut Logic
+    const btnAnalyze = document.getElementById('ap-shortcut-analyze');
+    btnAnalyze.addEventListener('click', () => recordShortcut('analyze', btnAnalyze));
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeSettings();
     });
@@ -511,25 +518,31 @@ function createToast() {
 }
 
 // -----------------------------------------------------------------------------
-// 3. LÓGICA DE UI
+// 4. LÓGICA DE UI & SHORTCUTS
 // -----------------------------------------------------------------------------
 
-function toggleSidebar() {
+function openSidebar() {
     const sidebar = document.getElementById('ap-sidebar');
-    STATE.isSidebarOpen = !STATE.isSidebarOpen;
-    
-    if (STATE.isSidebarOpen) {
-        sidebar.classList.add('open');
-        document.getElementById('ap-sidebar-handle').style.opacity = '0'; 
-    } else {
-        sidebar.classList.remove('open');
-    }
+    STATE.isSidebarOpen = true;
+    sidebar.classList.add('open');
+    document.getElementById('ap-sidebar-handle').style.opacity = '0';
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('ap-sidebar');
+    STATE.isSidebarOpen = false;
+    sidebar.classList.remove('open');
 }
 
 function openSettings() {
     document.getElementById('ap-api-key').value = STATE.settings.apiKey || '';
-    document.getElementById('ap-filter-prompt').value = STATE.settings.filterPrompt;
+    document.getElementById('ap-user-profile').value = STATE.settings.userProfile;
     document.getElementById('ap-proposal-prompt').value = STATE.settings.proposalPrompt;
+    
+    // Atualiza botão com atalho atual
+    const sc = STATE.settings.shortcuts.analyze;
+    document.getElementById('ap-shortcut-analyze').innerText = `${sc.modifier} + ${sc.key}`;
+
     document.getElementById('ap-modal-overlay').classList.add('show');
 }
 
@@ -539,42 +552,128 @@ function closeSettings() {
 
 function saveSettings() {
     const apiKey = document.getElementById('ap-api-key').value.trim();
-    const filterPrompt = document.getElementById('ap-filter-prompt').value.trim();
+    const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
 
-    STATE.settings = { apiKey, filterPrompt, proposalPrompt };
+    // Mantém os shortcuts atuais do STATE (já foram atualizados pela função recordShortcut)
+    const shortcuts = STATE.settings.shortcuts;
+
+    STATE.settings = { apiKey, userProfile, proposalPrompt, shortcuts };
 
     chrome.storage.local.set(STATE.settings, () => {
-        showToast("✅ Configurações atualizadas.");
+        showToast("✅ Configurações salvas.");
         closeSettings();
     });
 }
 
-function showToast(message) {
+// --- SHORTCUT RECORDER LOGIC ---
+
+function recordShortcut(actionName, btnElement) {
+    const originalText = btnElement.innerText;
+    btnElement.innerText = "Detectando...";
+    btnElement.classList.add('recording');
+
+    // Handler temporário
+    function handleKey(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ignora se for apenas teclas modificadoras sozinhas
+        if (['Shift', 'Control', 'Alt', 'Meta', 'Command'].includes(e.key)) return;
+
+        // Identifica modificador
+        let modifier = '';
+        if (e.shiftKey) modifier = 'Shift';
+        else if (e.ctrlKey) modifier = 'Ctrl';
+        else if (e.altKey) modifier = 'Alt';
+        else if (e.metaKey) modifier = 'Cmd';
+
+        // Exige 2 teclas (Modificador + Tecla)
+        if (modifier && e.key) {
+            const key = e.key.toUpperCase();
+            
+            // Atualiza STATE
+            STATE.settings.shortcuts[actionName] = { modifier, key };
+            
+            // Atualiza UI
+            btnElement.innerText = `${modifier} + ${key}`;
+            
+            // Cleanup
+            cleanup();
+        }
+    }
+
+    function cleanup() {
+        btnElement.classList.remove('recording');
+        document.removeEventListener('keydown', handleKey, true);
+        document.removeEventListener('click', cancelClick, true);
+    }
+    
+    // Se clicar fora, cancela
+    function cancelClick(e) {
+        if (e.target !== btnElement) {
+            btnElement.innerText = originalText;
+            cleanup();
+        }
+    }
+
+    document.addEventListener('keydown', handleKey, true);
+    // Pequeno delay para não registrar o clique atual
+    setTimeout(() => document.addEventListener('click', cancelClick, true), 100);
+}
+
+// --- TOAST LOGIC ---
+let toastTimeout;
+
+function showToast(message, type = 'normal') {
     const toast = document.getElementById('ap-toast');
-    toast.innerText = message;
-    toast.classList.add('show');
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
+    
+    if (toastTimeout) clearTimeout(toastTimeout);
+
+    if (type === 'loading') {
+        toast.innerHTML = `
+            <svg class="ap-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+            <span>${message}</span>
+        `;
+        toast.classList.add('show');
+    } else {
+        toast.innerHTML = `<span>${message}</span>`;
+        toast.classList.add('show');
+        
+        toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
 }
 
 // -----------------------------------------------------------------------------
-// 4. LÓGICA DE NEGÓCIO (Scraping & Renderização)
+// 5. LÓGICA DE NEGÓCIO (Scraping & Renderização)
 // -----------------------------------------------------------------------------
 
 function scrapeProjectsFromPage() {
-    console.log('[Auto-Proposal] -> Iniciando Scraping...');
+    console.log('[Auto-Proposal] -> Iniciando Scraping Profundo...');
     const items = document.querySelectorAll('.result-list > li.result-item');
     
     const projects = Array.from(items).map(li => {
         const titleEl = li.querySelector('.title a');
         const descEl = li.querySelector('.item-text.description');
+        let fullDescription = '';
+
+        if (descEl) {
+            const clone = descEl.cloneNode(true);
+            const readMore = clone.querySelector('.read-more');
+            if (readMore) readMore.remove();
+            const readLess = clone.querySelector('.read-less');
+            if (readLess) readLess.remove();
+
+            clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+            fullDescription = clone.textContent.trim();
+        }
         
         return {
             id: li.getAttribute('data-id'),
             title: titleEl ? titleEl.innerText.trim() : 'Sem título',
-            description: descEl ? descEl.innerText.trim() : '',
+            description: fullDescription,
             url: titleEl ? titleEl.href : '#'
         };
     });
@@ -590,7 +689,7 @@ function renderProjectCards(filteredProjects) {
         container.innerHTML = `
             <div class="ap-empty-state">
                 <p>Nenhum projeto compatível encontrado.</p>
-                <p style="font-size:12px; margin-top:8px;">Tente ajustar seu Prompt de Filtragem nas configurações.</p>
+                <p style="font-size:12px; margin-top:8px;">Verifique se seu Perfil Profissional está bem detalhado.</p>
             </div>
         `;
         return;
@@ -601,9 +700,13 @@ function renderProjectCards(filteredProjects) {
         card.className = 'ap-card';
         card.title = "Clique para ver detalhes";
         
+        const displayContent = project.summary 
+            ? parseSimpleMarkdown(project.summary) 
+            : project.description;
+
         card.innerHTML = `
             <div class="ap-card-title">${project.title}</div>
-            <div class="ap-card-desc">${project.description}</div>
+            <div class="ap-card-desc">${displayContent}</div>
         `;
 
         card.addEventListener('click', () => {
@@ -621,9 +724,8 @@ function runProjectAnalysis() {
         return;
     }
 
-    const btn = document.getElementById('ap-analyze-btn');
+    showToast("Analisando projetos...", "loading");
     
-    // 1. Scraping
     const projects = scrapeProjectsFromPage();
     if (projects.length === 0) {
         showToast("❌ Nenhum projeto encontrado na tela.");
@@ -631,24 +733,6 @@ function runProjectAnalysis() {
     }
     
     STATE.scrapedProjects = projects;
-    
-    // UI Loading
-    const originalBtnText = btn.innerHTML;
-    btn.innerHTML = `
-        <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s infinite linear; margin-right:8px;"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
-        Analisando...
-    `;
-    btn.classList.add('ap-btn-loading');
-    
-    // Adiciona keyframes para o spin se não existir
-    if (!document.getElementById('ap-spin-style')) {
-        const s = document.createElement('style');
-        s.id = 'ap-spin-style';
-        s.innerText = `@keyframes spin { 100% { transform: rotate(360deg); } }`;
-        document.head.appendChild(s);
-    }
-
-    showToast("🤖 IA: Analisando projetos...");
 
     const projectsPayload = projects.map(p => ({
         id: p.id,
@@ -656,41 +740,54 @@ function runProjectAnalysis() {
         description: p.description
     }));
 
-    // 2. Request
+    const finalSystemInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
+
     chrome.runtime.sendMessage({
         action: "geminiRequest",
         taskType: "FILTER_PROJECTS",
         apiKey: STATE.settings.apiKey,
-        systemInstruction: STATE.settings.filterPrompt,
+        systemInstruction: finalSystemInstruction,
         userPrompt: JSON.stringify(projectsPayload)
     }, (response) => {
         
-        btn.innerHTML = originalBtnText;
-        btn.classList.remove('ap-btn-loading');
-
         if (!response || !response.success) {
             console.error('[Auto-Proposal] Error:', response?.error);
             showToast("❌ Erro na IA.");
             return;
         }
 
-        const approvedIds = response.data;
-        if (!Array.isArray(approvedIds)) {
-            showToast("⚠️ IA retornou dados inválidos.");
+        const aiData = response.data;
+        let finalProjects = [];
+
+        if (Array.isArray(aiData)) {
+            if (aiData.length > 0 && typeof aiData[0] === 'object' && aiData[0].id) {
+                finalProjects = aiData.map(aiItem => {
+                    const original = STATE.scrapedProjects.find(p => p.id == aiItem.id);
+                    if (original) {
+                        return { ...original, summary: aiItem.summary };
+                    }
+                    return null;
+                }).filter(p => p !== null);
+            } else {
+                finalProjects = STATE.scrapedProjects.filter(p => aiData.includes(p.id));
+            }
+        } else {
+            showToast("⚠️ Formato de resposta inválido.");
             return;
         }
-
-        const matches = STATE.scrapedProjects.filter(p => approvedIds.includes(p.id));
         
-        renderProjectCards(matches);
-        showToast(`✅ ${matches.length} oportunidades encontradas!`);
+        renderProjectCards(finalProjects);
         
-        if (!STATE.isSidebarOpen) toggleSidebar();
+        showToast("✅ Projetos selecionados");
+        
+        if (!STATE.isSidebarOpen) {
+            setTimeout(() => openSidebar(), 500);
+        }
     });
 }
 
 // -----------------------------------------------------------------------------
-// 5. INICIALIZAÇÃO
+// 6. INICIALIZAÇÃO
 // -----------------------------------------------------------------------------
 
 function init() {
@@ -699,17 +796,23 @@ function init() {
     createSettingsModal();
     createToast();
 
-    chrome.storage.local.get(['apiKey', 'filterPrompt', 'proposalPrompt'], (result) => {
+    // Carrega configurações do Storage (incluindo shortcuts)
+    chrome.storage.local.get(['apiKey', 'userProfile', 'proposalPrompt', 'shortcuts'], (result) => {
         if (result.apiKey) STATE.settings.apiKey = result.apiKey;
-        if (result.filterPrompt) STATE.settings.filterPrompt = result.filterPrompt;
+        if (result.userProfile) STATE.settings.userProfile = result.userProfile;
         if (result.proposalPrompt) STATE.settings.proposalPrompt = result.proposalPrompt;
+        
+        // Carrega shortcuts salvos ou usa o default
+        if (result.shortcuts) {
+            STATE.settings.shortcuts = result.shortcuts;
+        }
     });
 
-    // Mouse Hover Edge Detection (Área maior para facilitar)
+    // Mouse Hover Edge Detection
     document.addEventListener('mousemove', (e) => {
         if (STATE.isSidebarOpen) return;
 
-        const threshold = 30; // 30px da borda
+        const threshold = 30;
         const isNearEdge = (window.innerWidth - e.clientX) < threshold;
         const handle = document.getElementById('ap-sidebar-handle');
 
@@ -718,9 +821,8 @@ function init() {
             handle.classList.add('visible');
         } else if (!isNearEdge && STATE.isHoveringEdge) {
             const rect = handle.getBoundingClientRect();
-            // Delay para não sumir instantaneamente se o mouse sair um pouco
             const isOverHandle = (
-                e.clientX >= rect.left - 20 && // Margem de erro
+                e.clientX >= rect.left - 20 &&
                 e.clientX <= rect.right + 20 &&
                 e.clientY >= rect.top - 20 &&
                 e.clientY <= rect.bottom + 20
@@ -730,6 +832,28 @@ function init() {
                 STATE.isHoveringEdge = false;
                 handle.classList.remove('visible');
             }
+        }
+    });
+
+    // DYNAMIC SHORTCUT LISTENER
+    document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        const sc = STATE.settings.shortcuts.analyze;
+        
+        // Verifica se a tecla bate com a configurada
+        // sc.modifier: 'Shift', 'Ctrl', 'Alt'
+        // sc.key: 'P'
+        
+        let modifierPressed = false;
+        if (sc.modifier === 'Shift') modifierPressed = e.shiftKey;
+        if (sc.modifier === 'Ctrl') modifierPressed = e.ctrlKey;
+        if (sc.modifier === 'Alt') modifierPressed = e.altKey;
+        if (sc.modifier === 'Cmd') modifierPressed = e.metaKey;
+
+        if (modifierPressed && e.key.toUpperCase() === sc.key.toUpperCase()) {
+            e.preventDefault();
+            runProjectAnalysis();
         }
     });
 }
