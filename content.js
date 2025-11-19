@@ -1,10 +1,9 @@
 /**
  * content.js
  * 
- * Versão: 4.6 (Fix: Modal Layout & Scrolling)
- * - Ajuste de CSS: O Modal agora tem altura máxima de 85% da tela.
- * - Scroll Interno: Cabeçalho e Botão Salvar ficam fixos; apenas os inputs rolam.
- * - Mantém todas as correções anteriores (Sidebar, Auto-Mode, Shortcuts).
+ * Versão: 4.7 (Fix: Card Expansion Delay & Scroll)
+ * - Ajuste de CSS: Cards agora mostram "..." e só expandem após 0.6s de hover.
+ * - Scroll: Reforçado comportamento de scroll na lista de projetos.
  */
 
 // -----------------------------------------------------------------------------
@@ -150,6 +149,7 @@ function injectStyles() {
             align-items: center;
             border-bottom: 1px solid var(--ap-glass-border);
             background: rgba(255, 255, 255, 0.02);
+            flex-shrink: 0; /* Impede encolhimento */
         }
 
         .ap-header h2 {
@@ -179,19 +179,22 @@ function injectStyles() {
             color: #fff;
         }
 
-        /* --- CONTENT AREA --- */
+        /* --- CONTENT AREA (SCROLLABLE) --- */
         .ap-content {
-            flex: 1;
-            overflow-y: auto;
+            flex: 1; /* Ocupa o espaço restante */
+            overflow-y: auto; /* Habilita Scroll Vertical */
             padding: 24px;
             display: flex;
             flex-direction: column;
             gap: 16px;
+            min-height: 0; /* Fix para Firefox/Flexbox scroll */
         }
         
+        /* Custom Scrollbar */
         .ap-content::-webkit-scrollbar { width: 6px; }
         .ap-content::-webkit-scrollbar-track { background: transparent; }
         .ap-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        .ap-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 
         .ap-empty-state {
             margin-top: 80px;
@@ -212,12 +215,14 @@ function injectStyles() {
             transition: all 0.3s var(--ap-ease);
             position: relative;
             overflow: hidden;
+            flex-shrink: 0; /* Garante que o card não encolha no flex */
         }
 
         .ap-card:hover {
             background: rgba(255, 255, 255, 0.07);
             transform: translateY(-2px) scale(1.01);
             border-color: rgba(255, 255, 255, 0.2);
+            z-index: 10; /* Traz pra frente */
         }
 
         .ap-card-title {
@@ -228,25 +233,33 @@ function injectStyles() {
             line-height: 1.3;
         }
 
+        /* --- EXPANDABLE DESCRIPTION --- */
         .ap-card-desc {
             font-size: 13px;
             color: rgba(255, 255, 255, 0.8);
             line-height: 1.5;
+            
+            /* Lógica de Truncamento */
             display: -webkit-box;
-            -webkit-line-clamp: 4; 
+            -webkit-line-clamp: 3; /* Mostra apenas 3 linhas */
             -webkit-box-orient: vertical;
             overflow: hidden;
-            transition: max-height 0.6s var(--ap-ease);
-            max-height: 85px;
+            text-overflow: ellipsis;
+            
+            /* Lógica de Animação */
+            max-height: 65px; /* Altura aproximada de 3 linhas */
+            transition: max-height 0.5s ease-in-out, color 0.3s;
         }
 
+        /* Estado Expandido (Hover Prolongado) */
         .ap-card:hover .ap-card-desc {
-            -webkit-line-clamp: unset;
-            max-height: 600px;
-            transition-delay: 0.2s;
+            -webkit-line-clamp: unset; /* Remove o limite de linhas */
+            max-height: 800px; /* Altura máxima segura para texto longo */
             color: #fff;
+            transition-delay: 0.6s; /* ATRASO: Só expande após 0.6s */
         }
         
+        /* Estilos internos do texto */
         .ap-card-desc strong, .ap-card-desc b { color: #fff; font-weight: 700; }
         .ap-card-desc em, .ap-card-desc i { color: #ccc; font-style: italic; }
         .ap-card-desc code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
@@ -260,6 +273,7 @@ function injectStyles() {
             text-align: center;
             font-size: 12px;
             color: var(--ap-text-secondary);
+            flex-shrink: 0;
         }
 
         .ap-btn-primary {
