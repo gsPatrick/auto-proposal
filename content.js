@@ -1,10 +1,10 @@
 /**
  * content.js
  * 
- * Versão: 3.4 (Shortcuts Engine & Style Fixes)
- * - Correção do background branco nos inputs/textareas (Focus state).
- * - Sistema de configuração de atalhos customizáveis (2 teclas).
- * - Persistência total de configurações e atalhos.
+ * Versão: 4.6 (Fix: Modal Layout & Scrolling)
+ * - Ajuste de CSS: O Modal agora tem altura máxima de 85% da tela.
+ * - Scroll Interno: Cabeçalho e Botão Salvar ficam fixos; apenas os inputs rolam.
+ * - Mantém todas as correções anteriores (Sidebar, Auto-Mode, Shortcuts).
  */
 
 // -----------------------------------------------------------------------------
@@ -25,23 +25,42 @@ REGRAS DE SAÍDA (IMPORTANTE):
 PERFIL DO USUÁRIO PARA FILTRAGEM:
 `;
 
+const PROPOSAL_SYSTEM_INSTRUCTION = `
+Você é um especialista em vendas consultivas no 99freelas.
+Sua missão é criar uma proposta comercial e definir preço e prazo baseados no PROMPT DO USUÁRIO e nos DADOS DO PROJETO.
+
+REGRAS DE SAÍDA (IMPORTANTE):
+1. Retorne APENAS um JSON válido (sem markdown blocks).
+2. Formato estrito:
+{
+  "message": "Texto persuasivo da proposta aqui...",
+  "price": 1500,
+  "duration": 7
+}
+3. "price" deve ser um NÚMERO (ex: 1500) representando o valor em Reais.
+4. "duration" deve ser um NÚMERO (ex: 7) representando dias úteis.
+5. Use o contexto do projeto para ser específico na mensagem.
+`;
+
 const STATE = {
     isSidebarOpen: false,
     isHoveringEdge: false,
     scrapedProjects: [],
+    lastAutoRunUrl: '', // Para evitar loop no modo automático
     settings: {
         apiKey: '',
-        userProfile: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs. Ignore design gráfico, redação e marketing puro.',
-        proposalPrompt: 'Você é um especialista em vendas consultivas. Escreva uma proposta comercial curta, direta e persuasiva para o projeto abaixo. Foque em resolver o problema do cliente. Use tom profissional mas próximo. Não coloque placeholders.',
-        // Novo objeto de atalhos
+        userProfile: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
+        proposalPrompt: 'Escreva uma proposta curta, direta e persuasiva. Foque em resolver o problema do cliente. Use tom profissional mas próximo.',
+        autoProposalMode: false,
         shortcuts: {
-            analyze: { modifier: 'Shift', key: 'P' }
+            analyze: { modifier: 'Shift', key: 'P' },
+            generate: { modifier: 'Shift', key: 'G' }
         }
     }
 };
 
 // -----------------------------------------------------------------------------
-// 1. INJEÇÃO DE ESTILOS (CSS - MACOS STYLE)
+// 1. INJEÇÃO DE ESTILOS (CSS)
 // -----------------------------------------------------------------------------
 
 function injectStyles() {
@@ -54,7 +73,6 @@ function injectStyles() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
         :root {
-            /* Palette macOS Dark */
             --ap-glass-bg: rgba(20, 20, 25, 0.65);
             --ap-glass-border: rgba(255, 255, 255, 0.12);
             --ap-text-primary: #ffffff;
@@ -87,11 +105,9 @@ function injectStyles() {
             color: var(--ap-text-primary);
         }
 
-        #ap-sidebar.open {
-            right: 0;
-        }
+        #ap-sidebar.open { right: 0; }
 
-        /* --- HANDLE (GATILHO) --- */
+        /* --- HANDLE --- */
         #ap-sidebar-handle {
             position: absolute;
             left: -24px;
@@ -231,13 +247,12 @@ function injectStyles() {
             color: #fff;
         }
         
-        /* Markdown Styles inside Card */
         .ap-card-desc strong, .ap-card-desc b { color: #fff; font-weight: 700; }
         .ap-card-desc em, .ap-card-desc i { color: #ccc; font-style: italic; }
         .ap-card-desc code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
         .ap-card-desc ul { padding-left: 16px; margin: 4px 0; }
 
-        /* --- FOOTER & BUTTONS --- */
+        /* --- FOOTER --- */
         .ap-footer {
             padding: 16px 24px;
             border-top: 1px solid var(--ap-glass-border);
@@ -263,7 +278,7 @@ function injectStyles() {
         #ap-modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(8px);
             z-index: 2147483648;
             display: none;
@@ -273,30 +288,49 @@ function injectStyles() {
             transition: opacity 0.3s;
         }
 
-        #ap-modal-overlay.show {
-            display: flex;
-            opacity: 1;
-        }
+        #ap-modal-overlay.show { display: flex; opacity: 1; }
 
         .ap-modal {
             background: #1e1e1e;
-            width: 420px;
+            width: 450px;
+            max-height: 85vh;
             border-radius: 18px;
             border: 1px solid rgba(255,255,255,0.15);
             box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-            padding: 28px;
+            padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
             color: #fff;
             transform: scale(0.95);
             transition: transform 0.3s var(--ap-ease);
+            overflow: hidden;
         }
         
         #ap-modal-overlay.show .ap-modal { transform: scale(1); }
 
-        .ap-modal-header { display: flex; justify-content: space-between; align-items: center; }
+        .ap-modal-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
         .ap-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+
+        /* Scrollable Body */
+        .ap-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding-right: 8px;
+            margin-bottom: 16px;
+        }
+
+        .ap-modal-body::-webkit-scrollbar { width: 6px; }
+        .ap-modal-body::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .ap-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
 
         .ap-input-group { display: flex; flex-direction: column; gap: 8px; }
         .ap-input-group label { font-size: 11px; text-transform: uppercase; color: var(--ap-text-secondary); font-weight: 700; }
@@ -306,44 +340,75 @@ function injectStyles() {
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 8px;
             padding: 12px;
-            color: white;
+            color: #ffffff !important; /* FIX: Always white */
             font-family: var(--ap-font);
             font-size: 13px;
         }
         
-        /* FIX: Force Dark Background on Focus */
         .ap-input:focus, .ap-textarea:focus {
             background: rgba(0,0,0,0.5) !important;
-            color: white !important;
+            color: #ffffff !important;
             outline: 1px solid var(--ap-accent-color);
         }
 
         /* Shortcut Button */
+        .ap-shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .ap-shortcut-row span { font-size: 13px; color: #ddd; }
+
         .ap-shortcut-btn {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.2);
             color: #fff;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-family: monospace;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.2s;
             text-align: center;
+            min-width: 80px;
         }
-        .ap-shortcut-btn:hover {
-            background: rgba(255,255,255,0.2);
-            border-color: #fff;
-        }
+        .ap-shortcut-btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
         .ap-shortcut-btn.recording {
             background: var(--ap-accent-color);
             border-color: var(--ap-accent-color);
             animation: pulse 1s infinite;
         }
+
+        /* Toggle Switch */
+        .ap-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        .ap-toggle input { display: none; }
+        .ap-toggle-track {
+            width: 40px; height: 22px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            position: relative;
+            transition: background 0.3s;
+        }
+        .ap-toggle-thumb {
+            width: 18px; height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px; left: 2px;
+            transition: transform 0.3s;
+        }
+        .ap-toggle input:checked + .ap-toggle-track { background: var(--ap-accent-color); }
+        .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { transform: translateX(18px); }
         
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
-        /* --- TOAST (PILL) --- */
+        /* --- TOAST --- */
         #ap-toast {
             position: fixed;
             top: 32px;
@@ -364,24 +429,20 @@ function injectStyles() {
             font-weight: 500;
             border: 1px solid rgba(255,255,255,0.1);
         }
-        
         #ap-toast.show { transform: translateX(-50%) translateY(0); }
-
-        /* Spin Animation */
-        @keyframes spin { 100% { transform: rotate(360deg); } }
         .ap-spin { animation: spin 1s infinite linear; display: block; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
     `;
     document.head.appendChild(style);
 }
 
 // -----------------------------------------------------------------------------
-// 2. HELPERS: MARKDOWN PARSER
+// 2. HELPERS
 // -----------------------------------------------------------------------------
 
 function parseSimpleMarkdown(text) {
     if (!text) return '';
-    
-    let html = text
+    return text
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -390,12 +451,20 @@ function parseSimpleMarkdown(text) {
         .replace(/`(.*?)`/g, '<code>$1</code>')
         .replace(/^\s*-\s+(.*)$/gm, '• $1<br>')
         .replace(/\n/g, '<br>');
+}
 
-    return html;
+function sanitizeNumber(value) {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        // Remove tudo que não for dígito ou ponto/vírgula
+        const clean = value.replace(/[^\d,.-]/g, '').replace(',', '.');
+        return parseFloat(clean) || 0;
+    }
+    return 0;
 }
 
 // -----------------------------------------------------------------------------
-// 3. COMPONENTES DE UI (DOM)
+// 3. COMPONENTES DE UI
 // -----------------------------------------------------------------------------
 
 function createSidebar() {
@@ -404,52 +473,34 @@ function createSidebar() {
     const sidebar = document.createElement('div');
     sidebar.id = 'ap-sidebar';
     sidebar.innerHTML = `
-        <!-- Handle -->
         <div id="ap-sidebar-handle" title="Abrir Auto-Proposal">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </div>
-
-        <!-- Header -->
         <div class="ap-header">
             <h2>Projetos em Potencial</h2>
             <button id="ap-settings-btn" class="ap-icon-btn" title="Configurações">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             </button>
         </div>
-
-        <!-- Content -->
         <div id="ap-project-list" class="ap-content">
             <div class="ap-empty-state">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
                 <p>Use o atalho para analisar.</p>
             </div>
         </div>
-
-        <!-- Footer -->
-        <div class="ap-footer">
-            Auto-Proposal AI v3.4
-        </div>
+        <div class="ap-footer">Auto-Proposal AI</div>
     `;
 
     document.body.appendChild(sidebar);
-
-    // Listeners
-    document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => {
-        e.stopPropagation();
-        openSidebar();
-    });
+    document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => { e.stopPropagation(); openSidebar(); });
     document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
     
-    // Click Outside Logic
     document.addEventListener('click', (e) => {
         const sidebar = document.getElementById('ap-sidebar');
         const handle = document.getElementById('ap-sidebar-handle');
         const settingsModal = document.getElementById('ap-modal-overlay');
-        
-        if (STATE.isSidebarOpen) {
-            if (!sidebar.contains(e.target) && !handle.contains(e.target) && !settingsModal.contains(e.target)) {
-                closeSidebar();
-            }
+        if (STATE.isSidebarOpen && !sidebar.contains(e.target) && !handle.contains(e.target) && !settingsModal.contains(e.target)) {
+            closeSidebar();
         }
     });
 }
@@ -468,27 +519,42 @@ function createSettingsModal() {
                 </button>
             </div>
             
-            <div class="ap-input-group">
-                <label>Google Gemini API Key</label>
-                <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
-            </div>
+            <div class="ap-modal-body">
+                <div class="ap-input-group">
+                    <label>Google Gemini API Key</label>
+                    <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
+                </div>
 
-            <div class="ap-input-group">
-                <label>Seu Perfil Profissional</label>
-                <textarea id="ap-user-profile" class="ap-textarea" placeholder="Ex: Sou desenvolvedor React Sênior..."></textarea>
-            </div>
+                <div class="ap-input-group">
+                    <label>Seu Perfil Profissional</label>
+                    <textarea id="ap-user-profile" class="ap-textarea" rows="4" placeholder="Ex: Sou desenvolvedor React Sênior..."></textarea>
+                </div>
 
-            <div class="ap-input-group">
-                <label>Prompt de Proposta</label>
-                <textarea id="ap-proposal-prompt" class="ap-textarea" placeholder="Ex: Proposta curta e direta..."></textarea>
-            </div>
+                <div class="ap-input-group">
+                    <label>Prompt de Proposta</label>
+                    <textarea id="ap-proposal-prompt" class="ap-textarea" rows="4" placeholder="Ex: Proposta curta e direta..."></textarea>
+                </div>
 
-            <!-- Atalhos -->
-            <div class="ap-input-group">
-                <label>Atalhos</label>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 13px; color: #ddd;">Analisar Projetos</span>
-                    <button id="ap-shortcut-analyze" class="ap-shortcut-btn">Shift + P</button>
+                <div class="ap-input-group">
+                    <label>Atalhos & Automação</label>
+                    
+                    <div class="ap-shortcut-row">
+                        <span>Analisar Lista de Projetos</span>
+                        <button id="ap-shortcut-analyze" class="ap-shortcut-btn">Shift + P</button>
+                    </div>
+
+                    <div class="ap-shortcut-row">
+                        <span>Gerar Proposta (Bid)</span>
+                        <button id="ap-shortcut-generate" class="ap-shortcut-btn">Shift + G</button>
+                    </div>
+
+                    <div style="margin-top: 8px;">
+                        <label class="ap-toggle">
+                            <input type="checkbox" id="ap-auto-mode">
+                            <div class="ap-toggle-track"><div class="ap-toggle-thumb"></div></div>
+                            <span style="font-size:13px; color:#fff;">Modo Automático (Página de Proposta)</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 
@@ -505,9 +571,10 @@ function createSettingsModal() {
     const btnAnalyze = document.getElementById('ap-shortcut-analyze');
     btnAnalyze.addEventListener('click', () => recordShortcut('analyze', btnAnalyze));
 
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) closeSettings();
-    });
+    const btnGenerate = document.getElementById('ap-shortcut-generate');
+    btnGenerate.addEventListener('click', () => recordShortcut('generate', btnGenerate));
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettings(); });
 }
 
 function createToast() {
@@ -525,6 +592,7 @@ function openSidebar() {
     const sidebar = document.getElementById('ap-sidebar');
     STATE.isSidebarOpen = true;
     sidebar.classList.add('open');
+    // Esconde o handle enquanto a sidebar está aberta
     document.getElementById('ap-sidebar-handle').style.opacity = '0';
 }
 
@@ -532,16 +600,22 @@ function closeSidebar() {
     const sidebar = document.getElementById('ap-sidebar');
     STATE.isSidebarOpen = false;
     sidebar.classList.remove('open');
+    // FIX CRÍTICO: Limpa o estilo inline para que o CSS (.visible) volte a funcionar no hover
+    document.getElementById('ap-sidebar-handle').style.opacity = '';
 }
 
 function openSettings() {
     document.getElementById('ap-api-key').value = STATE.settings.apiKey || '';
     document.getElementById('ap-user-profile').value = STATE.settings.userProfile;
     document.getElementById('ap-proposal-prompt').value = STATE.settings.proposalPrompt;
+    document.getElementById('ap-auto-mode').checked = STATE.settings.autoProposalMode;
     
-    // Atualiza botão com atalho atual
-    const sc = STATE.settings.shortcuts.analyze;
-    document.getElementById('ap-shortcut-analyze').innerText = `${sc.modifier} + ${sc.key}`;
+    // Garante que as chaves existem antes de acessar
+    const scAnalyze = STATE.settings.shortcuts.analyze || { modifier: 'Shift', key: 'P' };
+    const scGenerate = STATE.settings.shortcuts.generate || { modifier: 'Shift', key: 'G' };
+
+    document.getElementById('ap-shortcut-analyze').innerText = `${scAnalyze.modifier} + ${scAnalyze.key}`;
+    document.getElementById('ap-shortcut-generate').innerText = `${scGenerate.modifier} + ${scGenerate.key}`;
 
     document.getElementById('ap-modal-overlay').classList.add('show');
 }
@@ -554,11 +628,11 @@ function saveSettings() {
     const apiKey = document.getElementById('ap-api-key').value.trim();
     const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
+    const autoProposalMode = document.getElementById('ap-auto-mode').checked;
 
-    // Mantém os shortcuts atuais do STATE (já foram atualizados pela função recordShortcut)
     const shortcuts = STATE.settings.shortcuts;
 
-    STATE.settings = { apiKey, userProfile, proposalPrompt, shortcuts };
+    STATE.settings = { apiKey, userProfile, proposalPrompt, autoProposalMode, shortcuts };
 
     chrome.storage.local.set(STATE.settings, () => {
         showToast("✅ Configurações salvas.");
@@ -566,39 +640,26 @@ function saveSettings() {
     });
 }
 
-// --- SHORTCUT RECORDER LOGIC ---
-
 function recordShortcut(actionName, btnElement) {
     const originalText = btnElement.innerText;
     btnElement.innerText = "Detectando...";
     btnElement.classList.add('recording');
 
-    // Handler temporário
     function handleKey(e) {
         e.preventDefault();
         e.stopPropagation();
-
-        // Ignora se for apenas teclas modificadoras sozinhas
         if (['Shift', 'Control', 'Alt', 'Meta', 'Command'].includes(e.key)) return;
 
-        // Identifica modificador
         let modifier = '';
         if (e.shiftKey) modifier = 'Shift';
         else if (e.ctrlKey) modifier = 'Ctrl';
         else if (e.altKey) modifier = 'Alt';
         else if (e.metaKey) modifier = 'Cmd';
 
-        // Exige 2 teclas (Modificador + Tecla)
         if (modifier && e.key) {
             const key = e.key.toUpperCase();
-            
-            // Atualiza STATE
             STATE.settings.shortcuts[actionName] = { modifier, key };
-            
-            // Atualiza UI
             btnElement.innerText = `${modifier} + ${key}`;
-            
-            // Cleanup
             cleanup();
         }
     }
@@ -609,7 +670,6 @@ function recordShortcut(actionName, btnElement) {
         document.removeEventListener('click', cancelClick, true);
     }
     
-    // Se clicar fora, cancela
     function cancelClick(e) {
         if (e.target !== btnElement) {
             btnElement.innerText = originalText;
@@ -618,16 +678,12 @@ function recordShortcut(actionName, btnElement) {
     }
 
     document.addEventListener('keydown', handleKey, true);
-    // Pequeno delay para não registrar o clique atual
     setTimeout(() => document.addEventListener('click', cancelClick, true), 100);
 }
 
-// --- TOAST LOGIC ---
 let toastTimeout;
-
 function showToast(message, type = 'normal') {
     const toast = document.getElementById('ap-toast');
-    
     if (toastTimeout) clearTimeout(toastTimeout);
 
     if (type === 'loading') {
@@ -639,155 +695,250 @@ function showToast(message, type = 'normal') {
     } else {
         toast.innerHTML = `<span>${message}</span>`;
         toast.classList.add('show');
-        
-        toastTimeout = setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
+        toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
     }
 }
 
 // -----------------------------------------------------------------------------
-// 5. LÓGICA DE NEGÓCIO (Scraping & Renderização)
+// 5. LÓGICA: FILTRO DE PROJETOS (SIDEBAR)
 // -----------------------------------------------------------------------------
 
 function scrapeProjectsFromPage() {
-    console.log('[Auto-Proposal] -> Iniciando Scraping Profundo...');
     const items = document.querySelectorAll('.result-list > li.result-item');
-    
-    const projects = Array.from(items).map(li => {
+    return Array.from(items).map(li => {
         const titleEl = li.querySelector('.title a');
         const descEl = li.querySelector('.item-text.description');
         let fullDescription = '';
-
         if (descEl) {
             const clone = descEl.cloneNode(true);
-            const readMore = clone.querySelector('.read-more');
-            if (readMore) readMore.remove();
-            const readLess = clone.querySelector('.read-less');
-            if (readLess) readLess.remove();
-
+            if(clone.querySelector('.read-more')) clone.querySelector('.read-more').remove();
+            if(clone.querySelector('.read-less')) clone.querySelector('.read-less').remove();
             clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
             fullDescription = clone.textContent.trim();
         }
-        
+
+        // Modificação: Transforma URL de detalhes em URL de proposta (Bid)
+        let originalUrl = titleEl ? titleEl.href : '#';
+        let bidUrl = originalUrl.replace('/project/', '/project/bid/');
+
         return {
             id: li.getAttribute('data-id'),
             title: titleEl ? titleEl.innerText.trim() : 'Sem título',
             description: fullDescription,
-            url: titleEl ? titleEl.href : '#'
+            url: bidUrl
         };
     });
-
-    return projects;
 }
 
 function renderProjectCards(filteredProjects) {
     const container = document.getElementById('ap-project-list');
     container.innerHTML = '';
-
     if (filteredProjects.length === 0) {
-        container.innerHTML = `
-            <div class="ap-empty-state">
-                <p>Nenhum projeto compatível encontrado.</p>
-                <p style="font-size:12px; margin-top:8px;">Verifique se seu Perfil Profissional está bem detalhado.</p>
-            </div>
-        `;
+        container.innerHTML = `<div class="ap-empty-state"><p>Nenhum projeto compatível.</p></div>`;
         return;
     }
-
     filteredProjects.forEach(project => {
         const card = document.createElement('div');
         card.className = 'ap-card';
-        card.title = "Clique para ver detalhes";
-        
-        const displayContent = project.summary 
-            ? parseSimpleMarkdown(project.summary) 
-            : project.description;
-
-        card.innerHTML = `
-            <div class="ap-card-title">${project.title}</div>
-            <div class="ap-card-desc">${displayContent}</div>
-        `;
-
-        card.addEventListener('click', () => {
-            window.open(project.url, '_blank');
-        });
-
+        const displayContent = project.summary ? parseSimpleMarkdown(project.summary) : project.description;
+        card.innerHTML = `<div class="ap-card-title">${project.title}</div><div class="ap-card-desc">${displayContent}</div>`;
+        card.addEventListener('click', () => window.open(project.url, '_blank'));
         container.appendChild(card);
     });
 }
 
 function runProjectAnalysis() {
-    if (!STATE.settings.apiKey) {
-        showToast("⚠️ Configure sua API Key primeiro.");
-        openSettings();
-        return;
-    }
-
+    if (!STATE.settings.apiKey) { showToast("⚠️ Configure sua API Key."); openSettings(); return; }
     showToast("Analisando projetos...", "loading");
-    
     const projects = scrapeProjectsFromPage();
-    if (projects.length === 0) {
-        showToast("❌ Nenhum projeto encontrado na tela.");
-        return;
-    }
+    if (projects.length === 0) { showToast("❌ Nenhum projeto na tela."); return; }
     
     STATE.scrapedProjects = projects;
-
-    const projectsPayload = projects.map(p => ({
-        id: p.id,
-        title: p.title,
-        description: p.description
-    }));
-
-    const finalSystemInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
+    const projectsPayload = projects.map(p => ({ id: p.id, title: p.title, description: p.description }));
+    const finalInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
 
     chrome.runtime.sendMessage({
         action: "geminiRequest",
         taskType: "FILTER_PROJECTS",
         apiKey: STATE.settings.apiKey,
-        systemInstruction: finalSystemInstruction,
+        systemInstruction: finalInstruction,
         userPrompt: JSON.stringify(projectsPayload)
     }, (response) => {
-        
-        if (!response || !response.success) {
-            console.error('[Auto-Proposal] Error:', response?.error);
-            showToast("❌ Erro na IA.");
-            return;
-        }
-
+        if (!response || !response.success) { showToast("❌ Erro na IA."); return; }
         const aiData = response.data;
         let finalProjects = [];
-
-        if (Array.isArray(aiData)) {
-            if (aiData.length > 0 && typeof aiData[0] === 'object' && aiData[0].id) {
-                finalProjects = aiData.map(aiItem => {
-                    const original = STATE.scrapedProjects.find(p => p.id == aiItem.id);
-                    if (original) {
-                        return { ...original, summary: aiItem.summary };
-                    }
-                    return null;
-                }).filter(p => p !== null);
-            } else {
-                finalProjects = STATE.scrapedProjects.filter(p => aiData.includes(p.id));
-            }
+        if (Array.isArray(aiData) && aiData.length > 0 && aiData[0].id) {
+            finalProjects = aiData.map(aiItem => {
+                const original = STATE.scrapedProjects.find(p => p.id == aiItem.id);
+                return original ? { ...original, summary: aiItem.summary } : null;
+            }).filter(Boolean);
         } else {
-            showToast("⚠️ Formato de resposta inválido.");
+            finalProjects = STATE.scrapedProjects.filter(p => aiData.includes(p.id));
+        }
+        renderProjectCards(finalProjects);
+        showToast("✅ Projetos selecionados");
+        if (!STATE.isSidebarOpen) setTimeout(() => openSidebar(), 500);
+    });
+}
+
+// -----------------------------------------------------------------------------
+// 6. LÓGICA: GERAÇÃO DE PROPOSTA (BID PAGE)
+// -----------------------------------------------------------------------------
+
+function scrapeProposalContext() {
+    // 1. Nome do Cliente
+    const clientEl = document.querySelector('.info-usuario-nome .name');
+    const clientName = clientEl ? clientEl.innerText.trim() : 'Cliente';
+
+    // 2. Descrição do Projeto
+    const descEl = document.querySelector('.item-text.project-description');
+    let description = '';
+    if (descEl) {
+        // Clona para não estragar o DOM visual
+        const clone = descEl.cloneNode(true);
+        clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+        description = clone.textContent.trim();
+    }
+
+    // 3. Valor e Prazo Médios
+    const infoEl = document.querySelector('.generic.information');
+    let avgValue = 'Não informado';
+    let avgTime = 'Não informado';
+
+    if (infoEl) {
+        const bTags = infoEl.querySelectorAll('b');
+        if (bTags.length >= 1) avgValue = bTags[0].innerText.trim();
+        if (bTags.length >= 2) avgTime = bTags[1].innerText.trim();
+    }
+
+    return { clientName, description, avgValue, avgTime };
+}
+
+function fillProposalForm(data) {
+    // Data: { message, price, duration }
+    
+    // 1. Preencher Textarea da Proposta
+    const txtProposta = document.getElementById('proposta');
+    if (txtProposta) {
+        txtProposta.value = data.message;
+        txtProposta.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // 2. Preencher Inputs de Valor (Oferta)
+    const inputOferta = document.getElementById('oferta');
+    const inputOfertaFinal = document.getElementById('oferta-final');
+    
+    if (inputOferta) {
+        inputOferta.value = data.price;
+        inputOferta.dispatchEvent(new Event('input', { bubbles: true }));
+        inputOferta.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    if (inputOfertaFinal) {
+        inputOfertaFinal.value = (data.price * 1.17647059).toFixed(2);
+        inputOfertaFinal.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // 3. Preencher Duração
+    const inputDuracao = document.getElementById('duracao-estimada');
+    if (inputDuracao) {
+        inputDuracao.value = data.duration;
+        inputDuracao.dispatchEvent(new Event('input', { bubbles: true }));
+        inputDuracao.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+function runProposalGeneration() {
+    // Validação de URL
+    if (!window.location.href.includes("/project/bid/")) {
+        showToast("❌ Funcionalidade disponível apenas na página de enviar proposta.");
+        return;
+    }
+
+    if (!STATE.settings.apiKey) {
+        showToast("⚠️ Configure sua API Key.");
+        openSettings();
+        return;
+    }
+
+    showToast("Gerando proposta...", "loading");
+
+    // Coleta dados
+    const context = scrapeProposalContext();
+    
+    // Monta Prompt
+    const userPrompt = `
+    DADOS DO PROJETO:
+    Cliente: ${context.clientName}
+    Descrição: ${context.description}
+    Valor Médio das Propostas: ${context.avgValue}
+    Prazo Médio: ${context.avgTime}
+
+    MEU PROMPT DE PROPOSTA:
+    ${STATE.settings.proposalPrompt}
+
+    Gere o JSON com a mensagem, preço sugerido e prazo em dias.
+    `;
+
+    const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
+
+    // Chama API
+    chrome.runtime.sendMessage({
+        action: "geminiRequest",
+        taskType: "GENERATE_PROPOSAL",
+        apiKey: STATE.settings.apiKey,
+        systemInstruction: systemInstruction,
+        userPrompt: userPrompt
+    }, (response) => {
+        if (!response || !response.success) {
+            console.error("[Auto-Proposal] Error:", response?.error);
+            showToast("❌ Erro ao gerar proposta.");
             return;
         }
+
+        let data = response.data; // Pode vir como String ou Objeto
         
-        renderProjectCards(finalProjects);
-        
-        showToast("✅ Projetos selecionados");
-        
-        if (!STATE.isSidebarOpen) {
-            setTimeout(() => openSidebar(), 500);
+        // --- DEBUG LOGGING ---
+        console.group("[Auto-Proposal Debug]");
+        console.log("Raw Response Type:", typeof data);
+        console.log("Raw Response Content:", data);
+        console.groupEnd();
+        // ---------------------
+
+        // SAFETY PARSER: Se for string, limpa Markdown e faz parse
+        if (typeof data === 'string') {
+            try {
+                console.log("[Auto-Proposal] Cleaning Markdown from String...");
+                // Remove ```json e ``` (e possíveis espaços extras)
+                const cleanText = data.replace(/```json\s*/i, '').replace(/```/g, '').trim();
+                data = JSON.parse(cleanText);
+                console.log("[Auto-Proposal] Parsed JSON:", data);
+            } catch (e) {
+                console.error("[Auto-Proposal] Failed to parse JSON string:", e);
+                showToast("❌ Erro ao processar resposta da IA.");
+                return;
+            }
+        }
+
+        // Sanitização (Tenta converter string para numero se a IA mandou "15 dias")
+        const cleanPrice = sanitizeNumber(data.price);
+        const cleanDuration = sanitizeNumber(data.duration);
+
+        if (data.message && (cleanPrice || cleanPrice === 0) && (cleanDuration || cleanDuration === 0)) {
+            fillProposalForm({
+                message: data.message,
+                price: cleanPrice,
+                duration: cleanDuration
+            });
+            showToast("✅ Proposta preenchida!");
+        } else {
+            console.warn("[Auto-Proposal] Validation Failed. Missing keys or invalid types.", data);
+            showToast("⚠️ Resposta da IA incompleta. Veja o Console.");
         }
     });
 }
 
 // -----------------------------------------------------------------------------
-// 6. INICIALIZAÇÃO
+// 7. INICIALIZAÇÃO & LISTENERS
 // -----------------------------------------------------------------------------
 
 function init() {
@@ -796,22 +947,34 @@ function init() {
     createSettingsModal();
     createToast();
 
-    // Carrega configurações do Storage (incluindo shortcuts)
-    chrome.storage.local.get(['apiKey', 'userProfile', 'proposalPrompt', 'shortcuts'], (result) => {
+    chrome.storage.local.get(['apiKey', 'userProfile', 'proposalPrompt', 'shortcuts', 'autoProposalMode'], (result) => {
         if (result.apiKey) STATE.settings.apiKey = result.apiKey;
         if (result.userProfile) STATE.settings.userProfile = result.userProfile;
         if (result.proposalPrompt) STATE.settings.proposalPrompt = result.proposalPrompt;
+        if (result.autoProposalMode !== undefined) STATE.settings.autoProposalMode = result.autoProposalMode;
         
-        // Carrega shortcuts salvos ou usa o default
+        // FIX CRÍTICO: Merge de shortcuts com validação completa
         if (result.shortcuts) {
-            STATE.settings.shortcuts = result.shortcuts;
+            STATE.settings.shortcuts = {
+                ...STATE.settings.shortcuts, // Padrões
+                ...result.shortcuts          // Salvos
+            };
+            
+            // Garante que 'analyze' exista (caso o storage antigo esteja incompleto)
+            if (!STATE.settings.shortcuts.analyze) {
+                STATE.settings.shortcuts.analyze = { modifier: 'Shift', key: 'P' };
+            }
+
+            // Garante que 'generate' exista
+            if (!STATE.settings.shortcuts.generate) {
+                STATE.settings.shortcuts.generate = { modifier: 'Shift', key: 'G' };
+            }
         }
     });
 
     // Mouse Hover Edge Detection
     document.addEventListener('mousemove', (e) => {
         if (STATE.isSidebarOpen) return;
-
         const threshold = 30;
         const isNearEdge = (window.innerWidth - e.clientX) < threshold;
         const handle = document.getElementById('ap-sidebar-handle');
@@ -821,13 +984,7 @@ function init() {
             handle.classList.add('visible');
         } else if (!isNearEdge && STATE.isHoveringEdge) {
             const rect = handle.getBoundingClientRect();
-            const isOverHandle = (
-                e.clientX >= rect.left - 20 &&
-                e.clientX <= rect.right + 20 &&
-                e.clientY >= rect.top - 20 &&
-                e.clientY <= rect.bottom + 20
-            );
-
+            const isOverHandle = (e.clientX >= rect.left - 20 && e.clientX <= rect.right + 20 && e.clientY >= rect.top - 20 && e.clientY <= rect.bottom + 20);
             if (!isOverHandle) {
                 STATE.isHoveringEdge = false;
                 handle.classList.remove('visible');
@@ -835,27 +992,65 @@ function init() {
         }
     });
 
-    // DYNAMIC SHORTCUT LISTENER
+    // KEYDOWN HANDLER (Shortcuts)
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
-        const sc = STATE.settings.shortcuts.analyze;
-        
-        // Verifica se a tecla bate com a configurada
-        // sc.modifier: 'Shift', 'Ctrl', 'Alt'
-        // sc.key: 'P'
-        
-        let modifierPressed = false;
-        if (sc.modifier === 'Shift') modifierPressed = e.shiftKey;
-        if (sc.modifier === 'Ctrl') modifierPressed = e.ctrlKey;
-        if (sc.modifier === 'Alt') modifierPressed = e.altKey;
-        if (sc.modifier === 'Cmd') modifierPressed = e.metaKey;
+        const checkShortcut = (sc) => {
+            if (!sc) return false; // Segurança
+            let modifierPressed = false;
+            if (sc.modifier === 'Shift') modifierPressed = e.shiftKey;
+            if (sc.modifier === 'Ctrl') modifierPressed = e.ctrlKey;
+            if (sc.modifier === 'Alt') modifierPressed = e.altKey;
+            if (sc.modifier === 'Cmd') modifierPressed = e.metaKey;
+            return modifierPressed && e.key.toUpperCase() === sc.key.toUpperCase();
+        };
 
-        if (modifierPressed && e.key.toUpperCase() === sc.key.toUpperCase()) {
+        // Usa optional chaining ou fallback
+        const scAnalyze = STATE.settings.shortcuts.analyze;
+        const scGenerate = STATE.settings.shortcuts.generate;
+
+        if (scAnalyze && checkShortcut(scAnalyze)) {
             e.preventDefault();
             runProjectAnalysis();
         }
+
+        if (scGenerate && checkShortcut(scGenerate)) {
+            e.preventDefault();
+            runProposalGeneration();
+        }
     });
+
+    // URL MONITOR (Auto Mode)
+    setInterval(() => {
+        if (!STATE.settings.autoProposalMode) return;
+        
+        const currentUrl = window.location.href;
+        // Usamos includes para ser mais permissivo com query params
+        const isBidPage = currentUrl.includes("/project/bid/");
+
+        // Se não estamos na página de bid, limpamos o lastAutoRunUrl
+        // Isso garante que se o usuário voltar para a página, o script rode novamente
+        if (!isBidPage) {
+            STATE.lastAutoRunUrl = '';
+            return;
+        }
+
+        // Se estamos na página de bid E ainda não rodamos para esta URL específica
+        if (isBidPage && STATE.lastAutoRunUrl !== currentUrl) {
+            
+            // FIX IMPORTANTE: Verifica se o formulário já existe no DOM
+            // Evita rodar em página de "Loading..." ou antes do render completo
+            const proposalForm = document.getElementById('proposta');
+
+            if (proposalForm) {
+                STATE.lastAutoRunUrl = currentUrl;
+                console.log("[Auto-Proposal] Página de Proposta detectada e carregada. Iniciando...");
+                showToast("🤖 Modo Auto: Gerando proposta...", "loading");
+                runProposalGeneration();
+            }
+        }
+    }, 1000); // Intervalo de checagem mais rápido (1s)
 }
 
 if (document.readyState === 'loading') {
