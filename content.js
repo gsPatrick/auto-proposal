@@ -31,7 +31,7 @@ Sua missão é criar uma proposta comercial e definir preço e prazo baseados no
 REGRAS DE SAÍDA (IMPORTANTE):
 1. Retorne APENAS um JSON válido (sem markdown blocks).
 2. Formato estrito:
-{
+34: {
   "message": "Texto persuasivo da proposta aqui...",
   "price": 1500,
   "duration": 7
@@ -477,6 +477,16 @@ function sanitizeNumber(value) {
     return 0;
 }
 
+function formatCurrencyBR(value) {
+    if (value === undefined || value === null) return '';
+    // Garante que é um número
+    const number = typeof value === 'string' ? parseFloat(value) : value;
+    if (isNaN(number)) return '';
+
+    // Formata para o padrão brasileiro: X.XXX,XX
+    return number.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // -----------------------------------------------------------------------------
 // 3. COMPONENTES DE UI
 // -----------------------------------------------------------------------------
@@ -508,7 +518,7 @@ function createSidebar() {
     document.body.appendChild(sidebar);
     document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => { e.stopPropagation(); openSidebar(); });
     document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
-    
+
     document.addEventListener('click', (e) => {
         const sidebar = document.getElementById('ap-sidebar');
         const handle = document.getElementById('ap-sidebar-handle');
@@ -580,7 +590,7 @@ function createSettingsModal() {
 
     document.getElementById('ap-close-modal').addEventListener('click', closeSettings);
     document.getElementById('ap-save-settings').addEventListener('click', saveSettings);
-    
+
     // Shortcut Logic
     const btnAnalyze = document.getElementById('ap-shortcut-analyze');
     btnAnalyze.addEventListener('click', () => recordShortcut('analyze', btnAnalyze));
@@ -623,7 +633,7 @@ function openSettings() {
     document.getElementById('ap-user-profile').value = STATE.settings.userProfile;
     document.getElementById('ap-proposal-prompt').value = STATE.settings.proposalPrompt;
     document.getElementById('ap-auto-mode').checked = STATE.settings.autoProposalMode;
-    
+
     // Garante que as chaves existem antes de acessar
     const scAnalyze = STATE.settings.shortcuts.analyze || { modifier: 'Shift', key: 'P' };
     const scGenerate = STATE.settings.shortcuts.generate || { modifier: 'Shift', key: 'G' };
@@ -683,7 +693,7 @@ function recordShortcut(actionName, btnElement) {
         document.removeEventListener('keydown', handleKey, true);
         document.removeEventListener('click', cancelClick, true);
     }
-    
+
     function cancelClick(e) {
         if (e.target !== btnElement) {
             btnElement.innerText = originalText;
@@ -725,8 +735,8 @@ function scrapeProjectsFromPage() {
         let fullDescription = '';
         if (descEl) {
             const clone = descEl.cloneNode(true);
-            if(clone.querySelector('.read-more')) clone.querySelector('.read-more').remove();
-            if(clone.querySelector('.read-less')) clone.querySelector('.read-less').remove();
+            if (clone.querySelector('.read-more')) clone.querySelector('.read-more').remove();
+            if (clone.querySelector('.read-less')) clone.querySelector('.read-less').remove();
             clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
             fullDescription = clone.textContent.trim();
         }
@@ -766,7 +776,7 @@ function runProjectAnalysis() {
     showToast("Analisando projetos...", "loading");
     const projects = scrapeProjectsFromPage();
     if (projects.length === 0) { showToast("❌ Nenhum projeto na tela."); return; }
-    
+
     STATE.scrapedProjects = projects;
     const projectsPayload = projects.map(p => ({ id: p.id, title: p.title, description: p.description }));
     const finalInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
@@ -830,7 +840,7 @@ function scrapeProposalContext() {
 
 function fillProposalForm(data) {
     // Data: { message, price, duration }
-    
+
     // 1. Preencher Textarea da Proposta
     const txtProposta = document.getElementById('proposta');
     if (txtProposta) {
@@ -841,14 +851,14 @@ function fillProposalForm(data) {
     // 2. Preencher Inputs de Valor (Oferta)
     const inputOferta = document.getElementById('oferta');
     const inputOfertaFinal = document.getElementById('oferta-final');
-    
+
     if (inputOferta) {
-        inputOferta.value = data.price;
+        inputOferta.value = formatCurrencyBR(data.price);
         inputOferta.dispatchEvent(new Event('input', { bubbles: true }));
         inputOferta.dispatchEvent(new Event('change', { bubbles: true }));
     }
     if (inputOfertaFinal) {
-        inputOfertaFinal.value = (data.price * 1.17647059).toFixed(2);
+        inputOfertaFinal.value = formatCurrencyBR(data.price * 1.17647059);
         inputOfertaFinal.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
@@ -878,7 +888,7 @@ function runProposalGeneration() {
 
     // Coleta dados
     const context = scrapeProposalContext();
-    
+
     // Monta Prompt
     const userPrompt = `
     DADOS DO PROJETO:
@@ -910,7 +920,7 @@ function runProposalGeneration() {
         }
 
         let data = response.data; // Pode vir como String ou Objeto
-        
+
         // --- DEBUG LOGGING ---
         console.group("[Auto-Proposal Debug]");
         console.log("Raw Response Type:", typeof data);
@@ -966,14 +976,14 @@ function init() {
         if (result.userProfile) STATE.settings.userProfile = result.userProfile;
         if (result.proposalPrompt) STATE.settings.proposalPrompt = result.proposalPrompt;
         if (result.autoProposalMode !== undefined) STATE.settings.autoProposalMode = result.autoProposalMode;
-        
+
         // FIX CRÍTICO: Merge de shortcuts com validação completa
         if (result.shortcuts) {
             STATE.settings.shortcuts = {
                 ...STATE.settings.shortcuts, // Padrões
                 ...result.shortcuts          // Salvos
             };
-            
+
             // Garante que 'analyze' exista (caso o storage antigo esteja incompleto)
             if (!STATE.settings.shortcuts.analyze) {
                 STATE.settings.shortcuts.analyze = { modifier: 'Shift', key: 'P' };
@@ -1038,7 +1048,7 @@ function init() {
     // URL MONITOR (Auto Mode)
     setInterval(() => {
         if (!STATE.settings.autoProposalMode) return;
-        
+
         const currentUrl = window.location.href;
         // Usamos includes para ser mais permissivo com query params
         const isBidPage = currentUrl.includes("/project/bid/");
@@ -1052,7 +1062,7 @@ function init() {
 
         // Se estamos na página de bid E ainda não rodamos para esta URL específica
         if (isBidPage && STATE.lastAutoRunUrl !== currentUrl) {
-            
+
             // FIX IMPORTANTE: Verifica se o formulário já existe no DOM
             // Evita rodar em página de "Loading..." ou antes do render completo
             const proposalForm = document.getElementById('proposta');
