@@ -41,6 +41,11 @@ REGRAS DE SAÍDA (IMPORTANTE):
 5. Use o contexto do projeto para ser específico na mensagem.
 `;
 
+// Detecta qual site está sendo acessado
+const CURRENT_SITE = window.location.hostname.includes('freelancer.com')
+    ? 'freelancer'
+    : '99freelas';
+
 const STATE = {
     isSidebarOpen: false,
     isHoveringEdge: false,
@@ -727,7 +732,16 @@ function showToast(message, type = 'normal') {
 // 5. LÓGICA: FILTRO DE PROJETOS (SIDEBAR)
 // -----------------------------------------------------------------------------
 
-function scrapeProjectsFromPage() {
+// Dispatcher: escolhe a função correta baseada no site
+async function scrapeProjectsFromPage() {
+    if (CURRENT_SITE === 'freelancer') {
+        return await scrapeProjectsFreelancer();
+    }
+    return scrapeProjects99freelas();
+}
+
+// Scraper específico para 99freelas
+function scrapeProjects99freelas() {
     const items = document.querySelectorAll('.result-list > li.result-item');
     return Array.from(items).map(li => {
         const titleEl = li.querySelector('.title a');
@@ -754,6 +768,63 @@ function scrapeProjectsFromPage() {
     });
 }
 
+// Scraper específico para Freelancer.com
+async function scrapeProjectsFreelancer() {
+    const cards = document.querySelectorAll('fl-project-contest-card.ProjectCard');
+    const projects = [];
+
+    const esperar = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    console.log(`[Auto-Proposal] Freelancer: Encontrados ${cards.length} cards de projetos...`);
+
+    for (const card of cards) {
+        try {
+            // Expandir descrição clicando em "Read More"
+            const paragrafoDescricao = card.querySelector('p.mb-xxsmall');
+            if (paragrafoDescricao) {
+                const botaoMore = paragrafoDescricao.querySelector('.ReadMoreButton');
+                if (botaoMore) {
+                    botaoMore.click();
+                    await esperar(150);
+                }
+            }
+
+            // Título do Projeto
+            const elTitulo = card.querySelector('.Title-text');
+            const titulo = elTitulo ? elTitulo.innerText.trim() : "Sem Título";
+
+            // URL do projeto (buscar link que contém /projects/)
+            const linkEl = card.querySelector('a[href*="/projects/"]');
+            const url = linkEl ? linkEl.href : '#';
+
+            // Descrição (sem botão)
+            let descricao = "";
+            if (paragrafoDescricao) {
+                const cloneDesc = paragrafoDescricao.cloneNode(true);
+                const btnNoClone = cloneDesc.querySelector('button');
+                if (btnNoClone) btnNoClone.remove();
+                descricao = cloneDesc.innerText.trim();
+            }
+
+            // ID único baseado no URL ou título
+            const id = url !== '#'
+                ? url.split('/').pop().split('?')[0]
+                : titulo.toLowerCase().replace(/\s+/g, '-').substring(0, 50);
+
+            projects.push({
+                id: id,
+                title: titulo,
+                description: descricao,
+                url: url
+            });
+        } catch (erro) {
+            console.error("[Auto-Proposal] Erro ao processar card do Freelancer:", erro);
+        }
+    }
+
+    return projects;
+}
+
 function renderProjectCards(filteredProjects) {
     const container = document.getElementById('ap-project-list');
     container.innerHTML = '';
@@ -771,10 +842,12 @@ function renderProjectCards(filteredProjects) {
     });
 }
 
-function runProjectAnalysis() {
+async function runProjectAnalysis() {
     if (!STATE.settings.apiKey) { showToast("⚠️ Configure sua API Key."); openSettings(); return; }
     showToast("Analisando projetos...", "loading");
-    const projects = scrapeProjectsFromPage();
+
+    // Aguarda o scraping (necessário para Freelancer.com que é async)
+    const projects = await scrapeProjectsFromPage();
     if (projects.length === 0) { showToast("❌ Nenhum projeto na tela."); return; }
 
     STATE.scrapedProjects = projects;

@@ -24,7 +24,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.99freelas.com.br/*"],
+      "matches": [
+        "*://www.99freelas.com.br/*",
+        "*://www.freelancer.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
