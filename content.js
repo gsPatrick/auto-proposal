@@ -77,32 +77,75 @@ function injectStyles() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
         :root {
-            --ap-glass-bg: rgba(20, 20, 25, 0.65);
-            --ap-glass-border: rgba(255, 255, 255, 0.12);
-            --ap-text-primary: #ffffff;
+            /* --- SUPERFÍCIES (macOS Vibrancy) --- */
+            --ap-glass-bg: rgba(38, 38, 42, 0.72);
+            --ap-glass-bg-elevated: rgba(52, 52, 58, 0.82);
+            --ap-glass-border: rgba(255, 255, 255, 0.08);
+            --ap-glass-border-highlight: rgba(255, 255, 255, 0.14);
+            
+            /* --- TIPOGRAFIA --- */
+            --ap-text-primary: rgba(255, 255, 255, 0.98);
             --ap-text-secondary: rgba(255, 255, 255, 0.55);
-            --ap-accent-gradient: linear-gradient(135deg, #0A84FF 0%, #007AFF 100%);
+            --ap-text-tertiary: rgba(255, 255, 255, 0.35);
+            
+            /* --- CORES DE ACENTO (Apple Blue) --- */
             --ap-accent-color: #0A84FF;
-            --ap-shadow-elevation: 0 20px 50px rgba(0,0,0,0.6);
-            --ap-radius-md: 12px;
-            --ap-font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-            --ap-ease: cubic-bezier(0.32, 0.72, 0, 1);
+            --ap-accent-hover: #409CFF;
+            --ap-accent-gradient: linear-gradient(180deg, #3B9EFF 0%, #0A84FF 100%);
+            
+            /* --- SEMÂNTICAS --- */
+            --ap-success: #30D158;
+            --ap-warning: #FFD60A;
+            --ap-danger: #FF453A;
+            
+            /* --- SOMBRAS (Elevation) --- */
+            --ap-shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+            --ap-shadow-md: 0 8px 24px rgba(0,0,0,0.35);
+            --ap-shadow-lg: 0 24px 56px rgba(0,0,0,0.55);
+            --ap-shadow-glow: 0 0 20px rgba(10, 132, 255, 0.3);
+            
+            /* --- ESPAÇAMENTOS --- */
+            --ap-spacing-xs: 4px;
+            --ap-spacing-sm: 8px;
+            --ap-spacing-md: 16px;
+            --ap-spacing-lg: 24px;
+            --ap-spacing-xl: 32px;
+            
+            /* --- RAIOS DE BORDA --- */
+            --ap-radius-sm: 6px;
+            --ap-radius-md: 10px;
+            --ap-radius-lg: 14px;
+            --ap-radius-xl: 18px;
+            
+            /* --- ANIMAÇÕES --- */
+            --ap-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            --ap-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ap-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --ap-duration-fast: 150ms;
+            --ap-duration-normal: 250ms;
+            --ap-duration-slow: 400ms;
+            
+            /* --- FONTE --- */
+            --ap-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
+            --ap-font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
         }
 
-        /* --- SIDEBAR CONTAINER --- */
+        /* --- SIDEBAR CONTAINER (macOS Vibrancy) --- */
         #ap-sidebar {
             position: fixed;
             top: 0;
             right: -420px;
             width: 420px;
             height: 100vh;
-            background: var(--ap-glass-bg);
-            backdrop-filter: blur(50px) saturate(180%);
-            -webkit-backdrop-filter: blur(50px) saturate(180%);
-            border-left: 1px solid var(--ap-glass-border);
-            box-shadow: var(--ap-shadow-elevation);
+            background: linear-gradient(180deg, rgba(44, 44, 50, 0.85) 0%, rgba(30, 30, 36, 0.92) 100%);
+            backdrop-filter: blur(80px) saturate(200%);
+            -webkit-backdrop-filter: blur(80px) saturate(200%);
+            border-left: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 
+                -1px 0 0 rgba(255,255,255,0.05) inset,
+                -20px 0 60px rgba(0,0,0,0.5);
             z-index: 2147483647;
-            transition: right 0.5s var(--ap-ease);
+            transition: right 0.5s var(--ap-ease-out);
             display: flex;
             flex-direction: column;
             font-family: var(--ap-font);
@@ -111,346 +154,648 @@ function injectStyles() {
 
         #ap-sidebar.open { right: 0; }
 
-        /* --- HANDLE --- */
+        /* --- HANDLE (Floating Pill) --- */
         #ap-sidebar-handle {
             position: absolute;
-            left: -24px;
+            left: -18px;
             top: 50%;
-            transform: translateY(-50%) scale(0.8);
-            width: 48px;
-            height: 96px;
-            background: rgba(30, 30, 35, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--ap-glass-border);
-            border-radius: 24px;
+            transform: translateY(-50%) scale(0.9);
+            width: 36px;
+            height: 72px;
+            background: linear-gradient(180deg, rgba(60,60,68,0.9) 0%, rgba(45,45,52,0.95) 100%);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 18px;
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            padding-left: 8px;
+            justify-content: center;
             cursor: pointer;
             opacity: 0;
-            transition: all 0.3s var(--ap-ease);
+            transition: all 0.4s var(--ap-ease-spring);
             pointer-events: none;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            box-shadow: 
+                0 0 0 0.5px rgba(255,255,255,0.08) inset,
+                0 8px 32px rgba(0,0,0,0.4);
+        }
+
+        #ap-sidebar-handle svg {
+            opacity: 0.6;
+            transition: opacity 0.2s, transform 0.3s var(--ap-ease);
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
         }
 
         #ap-sidebar-handle.visible {
             opacity: 1;
             pointer-events: all;
-            transform: translateY(-50%) translateX(-12px) scale(1);
+            transform: translateY(-50%) translateX(-6px) scale(1);
         }
 
         #ap-sidebar-handle:hover {
-            background: rgba(50, 50, 60, 0.9);
-            transform: translateY(-50%) translateX(-16px) scale(1.05);
+            background: linear-gradient(180deg, rgba(70,70,80,0.95) 0%, rgba(50,50,60,0.98) 100%);
+            transform: translateY(-50%) translateX(-10px) scale(1.08);
             border-color: var(--ap-accent-color);
+            box-shadow: 
+                0 0 0 0.5px rgba(255,255,255,0.12) inset,
+                0 0 24px rgba(10, 132, 255, 0.25),
+                0 8px 32px rgba(0,0,0,0.5);
         }
 
-        /* --- HEADER --- */
+        #ap-sidebar-handle:hover svg {
+            opacity: 1;
+            transform: translateX(-2px);
+        }
+
+        /* --- HEADER (macOS Window Title Bar) --- */
         .ap-header {
-            padding: 24px 28px;
+            padding: 18px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--ap-glass-border);
-            background: rgba(255, 255, 255, 0.02);
-            flex-shrink: 0; /* Impede encolhimento */
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%);
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .ap-header::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
         }
 
         .ap-header h2 {
             margin: 0;
-            font-size: 18px;
+            font-size: 14px;
             font-weight: 600;
-            background: linear-gradient(to right, #fff, #ccc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.2px;
+            color: var(--ap-text-primary);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
         .ap-icon-btn {
-            background: transparent;
-            border: none;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.08);
             color: var(--ap-text-secondary);
             cursor: pointer;
-            padding: 8px;
-            border-radius: 50%;
-            transition: all 0.2s;
+            padding: 7px;
+            border-radius: 8px;
+            transition: all var(--ap-duration-fast) var(--ap-ease);
             display: flex;
             align-items: center;
             justify-content: center;
         }
 
         .ap-icon-btn:hover {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(255,255,255,0.15);
+            color: var(--ap-text-primary);
+        }
+
+        .ap-icon-btn:active {
+            transform: scale(0.94);
+            background: rgba(255,255,255,0.08);
         }
 
         /* --- CONTENT AREA (SCROLLABLE) --- */
         .ap-content {
-            flex: 1; /* Ocupa o espaço restante */
-            overflow-y: auto; /* Habilita Scroll Vertical */
-            padding: 24px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
-            min-height: 0; /* Fix para Firefox/Flexbox scroll */
+            gap: 10px;
+            min-height: 0;
+        }
+
+        .ap-content p {
+            color: #fff;
         }
         
-        /* Custom Scrollbar */
-        .ap-content::-webkit-scrollbar { width: 6px; }
-        .ap-content::-webkit-scrollbar-track { background: transparent; }
-        .ap-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
-        .ap-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+        /* Custom Scrollbar (macOS Style) */
+        .ap-content::-webkit-scrollbar { width: 10px; }
+        .ap-content::-webkit-scrollbar-track { background: transparent; margin: 8px 0; }
+        .ap-content::-webkit-scrollbar-thumb { 
+            background: rgba(255,255,255,0.12); 
+            border-radius: 100px;
+            border: 3px solid transparent;
+            background-clip: padding-box;
+        }
+        .ap-content::-webkit-scrollbar-thumb:hover { 
+            background: rgba(255,255,255,0.2); 
+            background-clip: padding-box;
+        }
 
         .ap-empty-state {
             margin-top: 80px;
             text-align: center;
-            color: var(--ap-text-secondary);
-            font-size: 14px;
-            line-height: 1.6;
-            padding: 0 20px;
+            color: var(--ap-text-tertiary);
+            font-size: 13px;
+            line-height: 1.7;
+            padding: 0 40px;
         }
 
-        /* --- PROJECT CARDS --- */
+        .ap-empty-state svg {
+            margin-bottom: 20px;
+            opacity: 0.3;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        /* --- PROJECT CARDS (macOS List Item Style) --- */
         .ap-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--ap-glass-border);
-            border-radius: var(--ap-radius-md);
-            padding: 18px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 14px 16px 14px 18px;
             cursor: pointer;
-            transition: all 0.3s var(--ap-ease);
+            transition: all 0.25s var(--ap-ease);
             position: relative;
             overflow: hidden;
-            flex-shrink: 0; /* Garante que o card não encolha no flex */
+            flex-shrink: 0;
+        }
+
+        /* Accent indicator bar (left side) */
+        .ap-card::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            bottom: 12px;
+            left: 0;
+            width: 3px;
+            background: var(--ap-accent-color);
+            border-radius: 0 3px 3px 0;
+            opacity: 0;
+            transform: scaleY(0.5);
+            transition: all 0.25s var(--ap-ease-spring);
+        }
+
+        /* Subtle top highlight */
+        .ap-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 20px;
+            right: 20px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
         }
 
         .ap-card:hover {
-            background: rgba(255, 255, 255, 0.07);
-            transform: translateY(-2px) scale(1.01);
-            border-color: rgba(255, 255, 255, 0.2);
-            z-index: 10; /* Traz pra frente */
+            background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+            border-color: rgba(255,255,255,0.12);
+            transform: translateX(-4px);
+            box-shadow: 
+                4px 4px 20px rgba(0,0,0,0.2),
+                0 0 0 1px rgba(255,255,255,0.05) inset;
+        }
+
+        .ap-card:hover::before {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        .ap-card:active {
+            transform: translateX(-2px) scale(0.995);
+            transition-duration: 0.1s;
         }
 
         .ap-card-title {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 600;
-            color: #5AA9FF;
-            margin-bottom: 10px;
-            line-height: 1.3;
+            color: #5CB8FF;
+            margin-bottom: 6px;
+            line-height: 1.4;
+            letter-spacing: -0.1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Optional: Add arrow icon on hover */
+        .ap-card-title::after {
+            content: '→';
+            font-size: 12px;
+            opacity: 0;
+            transform: translateX(-8px);
+            transition: all 0.25s var(--ap-ease);
+            color: var(--ap-accent-color);
+        }
+
+        .ap-card:hover .ap-card-title::after {
+            opacity: 0.7;
+            transform: translateX(0);
         }
 
         /* --- EXPANDABLE DESCRIPTION --- */
         .ap-card-desc {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.8);
-            line-height: 1.5;
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
+            line-height: 1.6;
             
-            /* Lógica de Truncamento */
             display: -webkit-box;
-            -webkit-line-clamp: 3; /* Mostra apenas 3 linhas */
+            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
             
-            /* Lógica de Animação */
-            max-height: 65px; /* Altura aproximada de 3 linhas */
-            transition: max-height 0.5s ease-in-out, color 0.3s;
+            max-height: 42px;
+            transition: max-height 0.5s var(--ap-ease), color 0.3s;
         }
 
-        /* Estado Expandido (Hover Prolongado) */
         .ap-card:hover .ap-card-desc {
-            -webkit-line-clamp: unset; /* Remove o limite de linhas */
-            max-height: 800px; /* Altura máxima segura para texto longo */
-            color: #fff;
-            transition-delay: 0.6s; /* ATRASO: Só expande após 0.6s */
+            -webkit-line-clamp: unset;
+            max-height: 600px;
+            color: rgba(255,255,255,0.85);
+            transition-delay: 0.5s;
         }
         
-        /* Estilos internos do texto */
-        .ap-card-desc strong, .ap-card-desc b { color: #fff; font-weight: 700; }
-        .ap-card-desc em, .ap-card-desc i { color: #ccc; font-style: italic; }
-        .ap-card-desc code { background: rgba(255,255,255,0.1); padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
-        .ap-card-desc ul { padding-left: 16px; margin: 4px 0; }
+        .ap-card-desc strong, .ap-card-desc b { 
+            color: #fff; 
+            font-weight: 600; 
+        }
+        .ap-card-desc em, .ap-card-desc i { 
+            color: var(--ap-text-secondary); 
+            font-style: italic; 
+        }
+        .ap-card-desc code { 
+            background: rgba(255,255,255,0.1); 
+            padding: 1px 5px; 
+            border-radius: 4px; 
+            font-family: var(--ap-font-mono); 
+            font-size: 0.85em; 
+        }
+        .ap-card-desc ul { padding-left: 14px; margin: 4px 0; }
 
-        /* --- FOOTER --- */
+        /* --- FOOTER (Subtle Branding) --- */
         .ap-footer {
-            padding: 16px 24px;
-            border-top: 1px solid var(--ap-glass-border);
-            background: rgba(0,0,0,0.2);
+            padding: 12px 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.2) 100%);
             text-align: center;
-            font-size: 12px;
-            color: var(--ap-text-secondary);
+            font-size: 10px;
+            color: rgba(18, 183, 224, 0.7);
             flex-shrink: 0;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            font-weight: 500;
         }
 
+        /* --- PRIMARY BUTTON (macOS Style) --- */
         .ap-btn-primary {
             width: 100%;
-            padding: 14px;
+            padding: 12px 20px;
             background: var(--ap-accent-gradient);
             color: white;
             border: none;
             border-radius: var(--ap-radius-md);
+            font-size: 14px;
             font-weight: 600;
+            letter-spacing: -0.2px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all var(--ap-duration-fast) var(--ap-ease);
+            box-shadow: 
+                0 1px 0 rgba(255,255,255,0.1) inset,
+                0 -1px 0 rgba(0,0,0,0.1) inset,
+                var(--ap-shadow-sm);
         }
 
-        /* --- MODAL SETTINGS --- */
+        .ap-btn-primary:hover {
+            filter: brightness(1.1);
+            box-shadow: 
+                0 1px 0 rgba(255,255,255,0.15) inset,
+                0 -1px 0 rgba(0,0,0,0.1) inset,
+                var(--ap-shadow-glow);
+        }
+
+        .ap-btn-primary:active {
+            transform: scale(0.98);
+            filter: brightness(0.95);
+        }
+
+        /* --- MODAL OVERLAY (macOS Backdrop) --- */
         #ap-modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             z-index: 2147483648;
             display: none;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.25s var(--ap-ease);
         }
 
         #ap-modal-overlay.show { display: flex; opacity: 1; }
 
+        /* --- MODAL (macOS Window) --- */
         .ap-modal {
-            background: #1e1e1e;
-            width: 450px;
+            background: var(--ap-glass-bg);
+            backdrop-filter: blur(72px) saturate(190%);
+            -webkit-backdrop-filter: blur(72px) saturate(190%);
+            width: 480px;
             max-height: 85vh;
-            border-radius: 18px;
-            border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
-            padding: 24px;
+            border-radius: var(--ap-radius-xl);
+            border: 1px solid var(--ap-glass-border-highlight);
+            box-shadow: 
+                0 0 0 0.5px rgba(255,255,255,0.1) inset,
+                var(--ap-shadow-lg);
             display: flex;
             flex-direction: column;
-            color: #fff;
-            transform: scale(0.95);
-            transition: transform 0.3s var(--ap-ease);
+            color: var(--ap-text-primary);
+            transform: scale(0.96) translateY(10px);
+            transition: transform 0.3s var(--ap-ease-spring);
             overflow: hidden;
         }
         
-        #ap-modal-overlay.show .ap-modal { transform: scale(1); }
+        #ap-modal-overlay.show .ap-modal { 
+            transform: scale(1) translateY(0); 
+        }
 
+        /* --- MODAL HEADER (macOS Title Bar) --- */
         .ap-modal-header { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            margin-bottom: 16px;
+            padding: 16px 20px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%);
+            border-bottom: 1px solid var(--ap-glass-border);
             flex-shrink: 0;
         }
-        .ap-modal-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
 
-        /* Scrollable Body */
+        .ap-modal-header h3 { 
+            margin: 0; 
+            font-size: 14px; 
+            font-weight: 600;
+            letter-spacing: -0.2px;
+            color: #fff;
+        }
+
+        /* Close Button (macOS Red Dot) */
+        .ap-close-btn {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--ap-danger);
+            border: none;
+            cursor: pointer;
+            transition: all var(--ap-duration-fast);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ap-close-btn::before,
+        .ap-close-btn::after {
+            content: '';
+            position: absolute;
+            width: 7px;
+            height: 1.5px;
+            background: rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity var(--ap-duration-fast);
+        }
+
+        .ap-close-btn::before { transform: rotate(45deg); }
+        .ap-close-btn::after { transform: rotate(-45deg); }
+
+        .ap-close-btn:hover::before,
+        .ap-close-btn:hover::after {
+            opacity: 1;
+        }
+
+        .ap-close-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* --- MODAL BODY (Scrollable) --- */
         .ap-modal-body {
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            padding-right: 8px;
-            margin-bottom: 16px;
+            gap: 24px;
+            padding: 20px;
+            margin-bottom: 0;
         }
 
-        .ap-modal-body::-webkit-scrollbar { width: 6px; }
-        .ap-modal-body::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
-        .ap-modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+        .ap-modal-body::-webkit-scrollbar { width: 8px; }
+        .ap-modal-body::-webkit-scrollbar-track { background: transparent; }
+        .ap-modal-body::-webkit-scrollbar-thumb { 
+            background: rgba(255,255,255,0.12); 
+            border-radius: 100px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
 
-        .ap-input-group { display: flex; flex-direction: column; gap: 8px; }
-        .ap-input-group label { font-size: 11px; text-transform: uppercase; color: var(--ap-text-secondary); font-weight: 700; }
+        /* --- INPUT GROUPS (macOS Style) --- */
+        .ap-input-group { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px; 
+        }
+
+        .ap-input-group label { 
+            font-size: 12px; 
+            text-transform: uppercase; 
+            color: var(--ap-text-secondary); 
+            font-weight: 600; 
+            letter-spacing: 0.5px;
+        }
 
         .ap-input, .ap-textarea {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 12px;
-            color: #ffffff !important; /* FIX: Always white */
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--ap-glass-border);
+            border-radius: var(--ap-radius-md);
+            padding: 12px 14px;
+            color: var(--ap-text-primary) !important;
             font-family: var(--ap-font);
             font-size: 13px;
+            line-height: 1.5;
+            transition: all var(--ap-duration-fast) var(--ap-ease);
+        }
+
+        .ap-input::placeholder, .ap-textarea::placeholder {
+            color: var(--ap-text-tertiary);
+        }
+        
+        .ap-input:hover, .ap-textarea:hover {
+            border-color: var(--ap-glass-border-highlight);
         }
         
         .ap-input:focus, .ap-textarea:focus {
-            background: rgba(0,0,0,0.5) !important;
-            color: #ffffff !important;
-            outline: 1px solid var(--ap-accent-color);
+            background: rgba(0, 0, 0, 0.35) !important;
+            border-color: var(--ap-accent-color) !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
         }
 
-        /* Shortcut Button */
+        .ap-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* --- SECTION DIVIDER --- */
+        .ap-section-divider {
+            height: 1px;
+            background: var(--ap-glass-border);
+            margin: 4px 0;
+        }
+
+        /* --- SHORTCUT BUTTONS (Keyboard Style) --- */
         .ap-shortcut-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            padding: 8px 0;
         }
-        .ap-shortcut-row span { font-size: 13px; color: #ddd; }
+
+        .ap-shortcut-row span { 
+            font-size: 13px; 
+            color: var(--ap-text-secondary);
+        }
 
         .ap-shortcut-btn {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: #fff;
-            padding: 6px 12px;
-            border-radius: 6px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            border: 1px solid var(--ap-glass-border-highlight);
+            border-bottom-width: 2px;
+            color: var(--ap-text-primary);
+            padding: 6px 14px;
+            border-radius: var(--ap-radius-sm);
             cursor: pointer;
-            font-family: monospace;
-            font-size: 12px;
-            transition: all 0.2s;
+            font-family: var(--ap-font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all var(--ap-duration-fast) var(--ap-ease);
             text-align: center;
-            min-width: 80px;
+            min-width: 90px;
+            box-shadow: 
+                0 1px 0 rgba(255,255,255,0.05) inset,
+                0 2px 4px rgba(0,0,0,0.15);
         }
-        .ap-shortcut-btn:hover { background: rgba(255,255,255,0.2); border-color: #fff; }
+
+        .ap-shortcut-btn:hover { 
+            background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.08) 100%);
+            border-color: var(--ap-text-secondary);
+        }
+
+        .ap-shortcut-btn:active {
+            transform: translateY(1px);
+            box-shadow: none;
+        }
+
         .ap-shortcut-btn.recording {
-            background: var(--ap-accent-color);
+            background: var(--ap-accent-gradient);
             border-color: var(--ap-accent-color);
             animation: pulse 1s infinite;
         }
 
-        /* Toggle Switch */
+        /* --- TOGGLE SWITCH (iOS 17 Style) --- */
         .ap-toggle {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             cursor: pointer;
+            padding: 8px 0;
         }
+
         .ap-toggle input { display: none; }
+
         .ap-toggle-track {
-            width: 40px; height: 22px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 20px;
+            width: 51px; 
+            height: 31px;
+            background: rgba(120, 120, 128, 0.32);
+            border-radius: 16px;
             position: relative;
-            transition: background 0.3s;
+            transition: background 0.3s var(--ap-ease);
+            flex-shrink: 0;
         }
+
         .ap-toggle-thumb {
-            width: 18px; height: 18px;
+            width: 27px; 
+            height: 27px;
             background: #fff;
             border-radius: 50%;
             position: absolute;
-            top: 2px; left: 2px;
-            transition: transform 0.3s;
+            top: 2px; 
+            left: 2px;
+            transition: transform 0.3s var(--ap-ease-spring);
+            box-shadow: 
+                0 3px 8px rgba(0,0,0,0.15),
+                0 3px 1px rgba(0,0,0,0.06);
         }
-        .ap-toggle input:checked + .ap-toggle-track { background: var(--ap-accent-color); }
-        .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { transform: translateX(18px); }
-        
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
-        /* --- TOAST --- */
+        .ap-toggle input:checked + .ap-toggle-track { 
+            background: var(--ap-success); 
+        }
+
+        .ap-toggle input:checked + .ap-toggle-track .ap-toggle-thumb { 
+            transform: translateX(20px); 
+        }
+
+        .ap-toggle-label {
+            font-size: 13px;
+            color: var(--ap-text-primary);
+            font-weight: 400;
+        }
+
+        /* --- MODAL FOOTER --- */
+        .ap-modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--ap-glass-border);
+            background: rgba(0,0,0,0.1);
+        }
+        
+        @keyframes pulse { 
+            0%, 100% { opacity: 1; } 
+            50% { opacity: 0.7; } 
+        }
+
+        /* --- TOAST (iOS Notification Style) --- */
         #ap-toast {
             position: fixed;
-            top: 32px;
+            top: 24px;
             left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            background: rgba(30, 30, 30, 0.9);
-            backdrop-filter: blur(10px);
-            color: white;
-            padding: 10px 24px;
-            border-radius: 30px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            transform: translateX(-50%) translateY(-120px);
+            background: var(--ap-glass-bg-elevated);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            color: var(--ap-text-primary);
+            padding: 12px 20px;
+            border-radius: 980px;
+            box-shadow: 
+                0 0 0 0.5px rgba(255,255,255,0.1) inset,
+                0 12px 40px rgba(0,0,0,0.4);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             z-index: 2147483649;
-            transition: transform 0.5s var(--ap-ease);
+            transition: transform 0.5s var(--ap-ease-spring);
             font-size: 13px;
             font-weight: 500;
-            border: 1px solid rgba(255,255,255,0.1);
+            letter-spacing: -0.1px;
+            border: 1px solid var(--ap-glass-border-highlight);
         }
-        #ap-toast.show { transform: translateX(-50%) translateY(0); }
-        .ap-spin { animation: spin 1s infinite linear; display: block; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #ap-toast.show { 
+            transform: translateX(-50%) translateY(0); 
+        }
+
+        .ap-spin { 
+            animation: spin 1s infinite linear; 
+            display: block; 
+        }
+
+        @keyframes spin { 
+            100% { transform: rotate(360deg); } 
+        }
     `;
     document.head.appendChild(style);
 }
@@ -542,30 +887,31 @@ function createSettingsModal() {
     overlay.innerHTML = `
         <div class="ap-modal">
             <div class="ap-modal-header">
-                <h3>Configurações da IA</h3>
-                <button id="ap-close-modal" class="ap-icon-btn" style="padding: 4px;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
+                <button id="ap-close-modal" class="ap-close-btn" title="Fechar"></button>
+                <h3>Configurações</h3>
+                <div style="width: 13px;"></div>
             </div>
             
             <div class="ap-modal-body">
                 <div class="ap-input-group">
-                    <label>Google Gemini API Key</label>
+                    <label>🔑 Google Gemini API Key</label>
                     <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
                 </div>
 
                 <div class="ap-input-group">
-                    <label>Seu Perfil Profissional</label>
+                    <label>👤 Seu Perfil Profissional</label>
                     <textarea id="ap-user-profile" class="ap-textarea" rows="4" placeholder="Ex: Sou desenvolvedor React Sênior..."></textarea>
                 </div>
 
                 <div class="ap-input-group">
-                    <label>Prompt de Proposta</label>
+                    <label>✍️ Prompt de Proposta</label>
                     <textarea id="ap-proposal-prompt" class="ap-textarea" rows="4" placeholder="Ex: Proposta curta e direta..."></textarea>
                 </div>
 
+                <div class="ap-section-divider"></div>
+
                 <div class="ap-input-group">
-                    <label>Atalhos & Automação</label>
+                    <label>⌨️ Atalhos de Teclado</label>
                     
                     <div class="ap-shortcut-row">
                         <span>Analisar Lista de Projetos</span>
@@ -576,18 +922,20 @@ function createSettingsModal() {
                         <span>Gerar Proposta (Bid)</span>
                         <button id="ap-shortcut-generate" class="ap-shortcut-btn">Shift + G</button>
                     </div>
-
-                    <div style="margin-top: 8px;">
-                        <label class="ap-toggle">
-                            <input type="checkbox" id="ap-auto-mode">
-                            <div class="ap-toggle-track"><div class="ap-toggle-thumb"></div></div>
-                            <span style="font-size:13px; color:#fff;">Modo Automático (Página de Proposta)</span>
-                        </label>
-                    </div>
                 </div>
+
+                <div class="ap-section-divider"></div>
+
+                <label class="ap-toggle">
+                    <input type="checkbox" id="ap-auto-mode">
+                    <div class="ap-toggle-track"><div class="ap-toggle-thumb"></div></div>
+                    <span class="ap-toggle-label">Modo Automático (Página de Proposta)</span>
+                </label>
             </div>
 
-            <button id="ap-save-settings" class="ap-btn-primary">Salvar Alterações</button>
+            <div class="ap-modal-footer">
+                <button id="ap-save-settings" class="ap-btn-primary">Salvar Alterações</button>
+            </div>
         </div>
     `;
 
