@@ -1809,10 +1809,37 @@ function init() {
     createSettingsModal();
     createToast();
 
-    chrome.storage.local.get(['apiKey', 'userProfile', 'proposalPrompt', 'shortcuts', 'autoProposalMode'], (result) => {
+    chrome.storage.local.get([
+        'apiKey',
+        'groqApiKey',
+        'groqModel',
+        'activePlatform',
+        'userProfile',
+        'proposalPrompt',
+        'userProfile_99freelas',
+        'proposalPrompt_99freelas',
+        'userProfile_freelancer',
+        'proposalPrompt_freelancer',
+        'shortcuts',
+        'autoProposalMode'
+    ], (result) => {
+        // API Keys
         if (result.apiKey) STATE.settings.apiKey = result.apiKey;
+        if (result.groqApiKey) STATE.settings.groqApiKey = result.groqApiKey;
+        if (result.groqModel) STATE.settings.groqModel = result.groqModel;
+
+        // Plataforma ativa
+        if (result.activePlatform) STATE.settings.activePlatform = result.activePlatform;
+
+        // Prompts (legado + por plataforma)
         if (result.userProfile) STATE.settings.userProfile = result.userProfile;
         if (result.proposalPrompt) STATE.settings.proposalPrompt = result.proposalPrompt;
+        if (result.userProfile_99freelas) STATE.settings.userProfile_99freelas = result.userProfile_99freelas;
+        if (result.proposalPrompt_99freelas) STATE.settings.proposalPrompt_99freelas = result.proposalPrompt_99freelas;
+        if (result.userProfile_freelancer) STATE.settings.userProfile_freelancer = result.userProfile_freelancer;
+        if (result.proposalPrompt_freelancer) STATE.settings.proposalPrompt_freelancer = result.proposalPrompt_freelancer;
+
+        // Modo automático
         if (result.autoProposalMode !== undefined) STATE.settings.autoProposalMode = result.autoProposalMode;
 
         // FIX CRÍTICO: Merge de shortcuts com validação completa
@@ -1832,6 +1859,8 @@ function init() {
                 STATE.settings.shortcuts.generate = { modifier: 'Shift', key: 'G' };
             }
         }
+
+        console.log('[Auto-Proposal] Settings carregadas:', STATE.settings);
     });
 
     // Mouse Hover Edge Detection
