@@ -914,7 +914,24 @@ async function runProjectAnalysis() {
 // 6. LÓGICA: GERAÇÃO DE PROPOSTA (BID PAGE)
 // -----------------------------------------------------------------------------
 
+// Dispatcher: escolhe a função correta baseada no site
 function scrapeProposalContext() {
+    if (CURRENT_SITE === 'freelancer') {
+        return scrapeProposalContextFreelancer();
+    }
+    return scrapeProposalContext99freelas();
+}
+
+// Dispatcher: escolhe a função correta baseada no site
+function fillProposalForm(data) {
+    if (CURRENT_SITE === 'freelancer') {
+        return fillProposalFormFreelancer(data);
+    }
+    return fillProposalForm99freelas(data);
+}
+
+// Scraper de contexto para 99freelas
+function scrapeProposalContext99freelas() {
     // 1. Nome do Cliente
     const clientEl = document.querySelector('.info-usuario-nome .name');
     const clientName = clientEl ? clientEl.innerText.trim() : 'Cliente';
@@ -943,7 +960,85 @@ function scrapeProposalContext() {
     return { clientName, description, avgValue, avgTime };
 }
 
-function fillProposalForm(data) {
+// Scraper de contexto para Freelancer.com
+function scrapeProposalContextFreelancer() {
+    // 1. Título do Projeto (geralmente no header da página)
+    const titleEl = document.querySelector('h1.PageProjectViewLogout-header-title, .project-header h1, app-project-view-header h1');
+    const projectTitle = titleEl ? titleEl.innerText.trim() : 'Projeto';
+
+    // 2. Descrição do Projeto
+    // Freelancer usa várias estruturas possíveis para a descrição
+    let description = '';
+    const descSelectors = [
+        '.project-details p',
+        '.ProjectDescription',
+        'app-project-view-description p',
+        '.PageProjectViewLogout-detail'
+    ];
+
+    for (const selector of descSelectors) {
+        const descEl = document.querySelector(selector);
+        if (descEl) {
+            const clone = descEl.cloneNode(true);
+            clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+            description = clone.textContent.trim();
+            if (description) break;
+        }
+    }
+
+    // Se ainda não encontrou, tenta buscar todo o conteúdo da página de descrição
+    if (!description) {
+        const mainContent = document.querySelector('app-project-view, .project-view-content');
+        if (mainContent) {
+            const paragraphs = mainContent.querySelectorAll('p');
+            const texts = Array.from(paragraphs).map(p => p.textContent.trim()).filter(t => t.length > 50);
+            description = texts.join('\n\n');
+        }
+    }
+
+    // 3. Budget do projeto
+    let avgValue = 'Não informado';
+    const budgetEl = document.querySelector('.BudgetPrice, .project-budget, [data-budget]');
+    if (budgetEl) {
+        avgValue = budgetEl.textContent.trim();
+    }
+
+    // 4. Prazo (geralmente não disponível diretamente, usar genérico)
+    let avgTime = 'A definir';
+
+    // 5. Skills do projeto
+    let skills = '';
+    const skillEls = document.querySelectorAll('.project-skills fl-tag, .Skills fl-tag, .SkillsWrapper fl-tag');
+    if (skillEls.length > 0) {
+        skills = Array.from(skillEls).map(el => el.textContent.trim()).join(', ');
+    }
+
+    // 6. Moeda do projeto (extraída do formulário de bid)
+    let currency = 'USD'; // Default
+    const currencyEl = document.querySelector('#bidAmountInput')?.closest('.InputContainer')?.querySelector('.AfterLabel .LabelText');
+    if (currencyEl) {
+        currency = currencyEl.textContent.trim();
+    } else {
+        // Fallback: tentar extrair do budget
+        const currencyMatch = avgValue.match(/([A-Z]{3}|[$€£])/);
+        if (currencyMatch) {
+            currency = currencyMatch[0];
+        }
+    }
+
+    console.log('[Auto-Proposal] Contexto Freelancer:', { projectTitle, description: description.substring(0, 200) + '...', avgValue, skills, currency });
+
+    return {
+        clientName: projectTitle, // Usamos o título do projeto como referência
+        description: description + (skills ? `\n\nSkills: ${skills}` : ''),
+        avgValue: avgValue,
+        avgTime: avgTime,
+        currency: currency
+    };
+}
+
+// Preenchimento de formulário para 99freelas
+function fillProposalForm99freelas(data) {
     // Data: { message, price, duration }
 
     // 1. Preencher Textarea da Proposta
@@ -976,9 +1071,54 @@ function fillProposalForm(data) {
     }
 }
 
+// Preenchimento de formulário para Freelancer.com
+function fillProposalFormFreelancer(data) {
+    // Data: { message, price, duration }
+
+    console.log('[Auto-Proposal] Preenchendo formulário Freelancer:', data);
+
+    // 1. Preencher Textarea da Proposta (descrição)
+    const txtDescription = document.getElementById('descriptionTextArea');
+    if (txtDescription) {
+        txtDescription.value = data.message;
+        txtDescription.dispatchEvent(new Event('input', { bubbles: true }));
+        txtDescription.dispatchEvent(new Event('change', { bubbles: true }));
+        // Angular às vezes precisa de blur para detectar mudanças
+        txtDescription.dispatchEvent(new Event('blur', { bubbles: true }));
+    } else {
+        console.warn('[Auto-Proposal] Campo descriptionTextArea não encontrado');
+    }
+
+    // 2. Preencher Bid Amount (valor)
+    const inputBidAmount = document.getElementById('bidAmountInput');
+    if (inputBidAmount) {
+        // Freelancer usa valores numéricos diretos (sem formatação BR)
+        inputBidAmount.value = data.price;
+        inputBidAmount.dispatchEvent(new Event('input', { bubbles: true }));
+        inputBidAmount.dispatchEvent(new Event('change', { bubbles: true }));
+        inputBidAmount.dispatchEvent(new Event('blur', { bubbles: true }));
+    } else {
+        console.warn('[Auto-Proposal] Campo bidAmountInput não encontrado');
+    }
+
+    // 3. Preencher Period (dias)
+    const inputPeriod = document.getElementById('periodInput');
+    if (inputPeriod) {
+        inputPeriod.value = data.duration;
+        inputPeriod.dispatchEvent(new Event('input', { bubbles: true }));
+        inputPeriod.dispatchEvent(new Event('change', { bubbles: true }));
+        inputPeriod.dispatchEvent(new Event('blur', { bubbles: true }));
+    } else {
+        console.warn('[Auto-Proposal] Campo periodInput não encontrado');
+    }
+}
+
 function runProposalGeneration() {
-    // Validação de URL
-    if (!window.location.href.includes("/project/bid/")) {
+    // Validação de URL (aceita 99freelas e Freelancer.com)
+    const isBidPage99freelas = window.location.href.includes("/project/bid/");
+    const isBidPageFreelancer = CURRENT_SITE === 'freelancer' && window.location.href.includes("/projects/");
+
+    if (!isBidPage99freelas && !isBidPageFreelancer) {
         showToast("❌ Funcionalidade disponível apenas na página de enviar proposta.");
         return;
     }
@@ -994,18 +1134,21 @@ function runProposalGeneration() {
     // Coleta dados
     const context = scrapeProposalContext();
 
-    // Monta Prompt
+    // Monta Prompt (inclui moeda se disponível)
+    const currencyInfo = context.currency ? `\n    Moeda: ${context.currency}` : '';
     const userPrompt = `
     DADOS DO PROJETO:
-    Cliente: ${context.clientName}
+    Cliente/Projeto: ${context.clientName}
     Descrição: ${context.description}
-    Valor Médio das Propostas: ${context.avgValue}
+    Orçamento/Budget: ${context.avgValue}${currencyInfo}
     Prazo Médio: ${context.avgTime}
 
     MEU PROMPT DE PROPOSTA:
     ${STATE.settings.proposalPrompt}
 
-    Gere o JSON com a mensagem, preço sugerido e prazo em dias.
+    IMPORTANTE: O preço deve ser sugerido na moeda ${context.currency || 'do projeto'}. Retorne apenas o valor numérico no campo "price".
+    
+    Gere o JSON com a mensagem, preço sugerido (apenas número) e prazo em dias.
     `;
 
     const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
