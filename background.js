@@ -7,7 +7,7 @@
  * 2. Geração de Proposta (Retorna Texto)
  */
 
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 // -----------------------------------------------------------------------------
 // HELPER: LOGGING
@@ -47,7 +47,7 @@ async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson =
     const url = `${API_BASE_URL}?key=${apiKey}`;
 
     logMessage('IA', 'Preparando requisição...', 1);
-    
+
     const payload = {
         contents: [{
             parts: [{ text: userPrompt }]
@@ -124,11 +124,11 @@ async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson =
 // -----------------------------------------------------------------------------
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    
+
     // Roteador de Ações
     if (request.action === "geminiRequest") {
         const { apiKey, systemInstruction, userPrompt, taskType } = request;
-        
+
         logMessage('BACKGROUND', `Recebida tarefa: ${taskType}`);
 
         if (!apiKey) {

@@ -793,8 +793,8 @@ async function scrapeProjectsFreelancer() {
             const elTitulo = card.querySelector('.Title-text');
             const titulo = elTitulo ? elTitulo.innerText.trim() : "Sem Título";
 
-            // URL do projeto (buscar link que contém /projects/)
-            const linkEl = card.querySelector('a[href*="/projects/"]');
+            // URL do projeto (usando o link com fltrackinglabel="RedirectToPVP")
+            const linkEl = card.querySelector('a[fltrackinglabel="RedirectToPVP"]');
             const url = linkEl ? linkEl.href : '#';
 
             // Descrição (sem botão)
