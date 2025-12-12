@@ -1698,8 +1698,11 @@ function init() {
         if (!STATE.settings.autoProposalMode) return;
 
         const currentUrl = window.location.href;
-        // Usamos includes para ser mais permissivo com query params
-        const isBidPage = currentUrl.includes("/project/bid/");
+
+        // Detecta página de bid para ambos os sites
+        const isBidPage99freelas = currentUrl.includes("/project/bid/");
+        const isBidPageFreelancer = CURRENT_SITE === 'freelancer' && currentUrl.includes("/projects/");
+        const isBidPage = isBidPage99freelas || isBidPageFreelancer;
 
         // Se não estamos na página de bid, limpamos o lastAutoRunUrl
         // Isso garante que se o usuário voltar para a página, o script rode novamente
@@ -1713,11 +1716,28 @@ function init() {
 
             // FIX IMPORTANTE: Verifica se o formulário já existe no DOM
             // Evita rodar em página de "Loading..." ou antes do render completo
-            const proposalForm = document.getElementById('proposta');
+            let formIsReady = false;
 
-            if (proposalForm) {
+            if (CURRENT_SITE === 'freelancer') {
+                // Para Freelancer.com, espera o componente app-bid-form carregar completamente
+                // O elemento 'descriptionTextArea' dentro de app-bid-form indica que o form está pronto
+                const bidForm = document.querySelector('app-bid-form');
+                const descriptionTextArea = document.getElementById('descriptionTextArea');
+                formIsReady = bidForm && descriptionTextArea;
+
+                if (bidForm && !descriptionTextArea) {
+                    console.log("[Auto-Proposal] Freelancer: app-bid-form encontrado, aguardando descriptionTextArea...");
+                }
+            } else {
+                // Para 99freelas, verifica o campo proposta
+                const proposalForm = document.getElementById('proposta');
+                formIsReady = !!proposalForm;
+            }
+
+            if (formIsReady) {
                 STATE.lastAutoRunUrl = currentUrl;
-                console.log("[Auto-Proposal] Página de Proposta detectada e carregada. Iniciando...");
+                console.log("[Auto-Proposal] Página de Proposta detectada e carregada. Iniciando modo automático...");
+                console.log("[Auto-Proposal] NOTA: A proposta será preenchida mas NÃO será enviada automaticamente.");
                 showToast("🤖 Modo Auto: Gerando proposta...", "loading");
                 runProposalGeneration();
             }
