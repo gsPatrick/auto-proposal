@@ -793,9 +793,41 @@ async function scrapeProjectsFreelancer() {
             const elTitulo = card.querySelector('.Title-text');
             const titulo = elTitulo ? elTitulo.innerText.trim() : "Sem Título";
 
-            // URL do projeto (usando o link com fltrackinglabel="RedirectToPVP")
-            const linkEl = card.querySelector('a[fltrackinglabel="RedirectToPVP"]');
-            const url = linkEl ? linkEl.href : '#';
+            // URL do projeto - Estratégias de busca:
+            // 1. Buscar link no wrapper pai (o card pode estar dentro de um <a>)
+            // 2. Buscar qualquer link com href contendo /projects/
+            // 3. Buscar link com fltrackinglabel
+            let url = '#';
+
+            // Estratégia 1: Verificar se o card está dentro de um link
+            const parentLink = card.closest('a[href*="/projects/"]');
+            if (parentLink) {
+                url = parentLink.href;
+            } else {
+                // Estratégia 2: Buscar link em qualquer lugar próximo do card (irmãos ou ancestrais)
+                const wrapper = card.parentElement;
+                if (wrapper) {
+                    const nearbyLink = wrapper.querySelector('a[href*="/projects/"]')
+                        || wrapper.closest('a[href*="/projects/"]');
+                    if (nearbyLink) {
+                        url = nearbyLink.href;
+                    }
+                }
+            }
+
+            // Estratégia 3: Fallback - buscar dentro do card
+            if (url === '#') {
+                const innerLink = card.querySelector('a[href*="/projects/"]')
+                    || card.querySelector('a[fltrackinglabel="RedirectToPVP"]');
+                if (innerLink) {
+                    url = innerLink.href;
+                }
+            }
+
+            // Log para debug se não encontrou URL
+            if (url === '#') {
+                console.warn(`[Auto-Proposal] URL não encontrada para: "${titulo}"`);
+            }
 
             // Descrição (sem botão)
             let descricao = "";
