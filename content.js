@@ -1702,8 +1702,12 @@ function runProposalGeneration() {
         return;
     }
 
-    if (!STATE.settings.apiKey) {
-        showToast("⚠️ Configure sua API Key.");
+    // Verificar se tem alguma API Key configurada
+    const hasGemini = STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0;
+    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+
+    if (!hasGemini && !hasGroq) {
+        showToast("⚠️ Configure uma API Key (Gemini ou Groq).");
         openSettings();
         return;
     }
@@ -1732,8 +1736,7 @@ function runProposalGeneration() {
 
     const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
 
-    // Determina qual provider usar
-    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+    // Determina qual provider usar (usa variables hasGemini e hasGroq já declaradas acima)
     const useGroq = hasGroq;
     const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
     const activeProvider = useGroq ? 'groq' : 'gemini';
