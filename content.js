@@ -52,7 +52,9 @@ const STATE = {
     scrapedProjects: [],
     lastAutoRunUrl: '', // Para evitar loop no modo automático
     settings: {
-        apiKey: '',
+        apiKey: '',  // Gemini API Key
+        groqApiKey: '', // Groq API Key
+        groqModel: 'llama-3.3-70b-versatile', // Modelo Groq padrão
         activePlatform: '99freelas', // '99freelas' ou 'freelancer'
         // Prompts para 99freelas
         userProfile_99freelas: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
@@ -941,6 +943,29 @@ function createSettingsModal() {
                 <div class="ap-input-group">
                     <label>🔑 Google Gemini API Key</label>
                     <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
+                    <small style="color: var(--ap-text-tertiary); font-size: 11px;">Deixe vazio para usar Groq</small>
+                </div>
+
+                <div class="ap-section-divider"></div>
+
+                <div class="ap-input-group">
+                    <label>⚡ Groq API Key</label>
+                    <input type="password" id="ap-groq-api-key" class="ap-input" placeholder="Cole sua chave Groq (gsk_...)">
+                    <small style="color: var(--ap-text-tertiary); font-size: 11px;">Deixe vazio para usar Gemini</small>
+                </div>
+
+                <div class="ap-input-group" id="ap-groq-model-group">
+                    <label>🤖 Modelo Groq</label>
+                    <select id="ap-groq-model" class="ap-select">
+                        <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recomendado)</option>
+                        <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Rápido)</option>
+                        <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+                        <option value="openai/gpt-oss-20b">GPT OSS 20B (Muito Rápido)</option>
+                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B (Preview)</option>
+                        <option value="qwen/qwen3-32b">Qwen3 32B (Preview)</option>
+                        <option value="moonshotai/kimi-k2-instruct">Kimi K2 Instruct (Preview)</option>
+                        <option value="moonshotai/kimi-k2-instruct-0905">Kimi K2 Instruct 0905 (Preview)</option>
+                    </select>
                 </div>
 
                 <div class="ap-section-divider"></div>
@@ -1024,6 +1049,32 @@ function createSettingsModal() {
     const btnGenerate = document.getElementById('ap-shortcut-generate');
     btnGenerate.addEventListener('click', () => recordShortcut('generate', btnGenerate));
 
+    // Lógica de bloqueio mútuo entre API Keys (Gemini <-> Groq)
+    const geminiInput = document.getElementById('ap-api-key');
+    const groqInput = document.getElementById('ap-groq-api-key');
+    const groqModelGroup = document.getElementById('ap-groq-model-group');
+
+    function updateApiKeyStates() {
+        const hasGemini = geminiInput.value.trim().length > 0;
+        const hasGroq = groqInput.value.trim().length > 0;
+
+        // Desabilitar input oposto se um estiver preenchido
+        groqInput.disabled = hasGemini;
+        geminiInput.disabled = hasGroq;
+
+        // Visual de desabilitado
+        groqInput.style.opacity = hasGemini ? '0.5' : '1';
+        groqInput.style.cursor = hasGemini ? 'not-allowed' : 'text';
+        geminiInput.style.opacity = hasGroq ? '0.5' : '1';
+        geminiInput.style.cursor = hasGroq ? 'not-allowed' : 'text';
+
+        // Mostrar/esconder seletor de modelo Groq
+        groqModelGroup.style.display = hasGroq ? 'flex' : 'none';
+    }
+
+    geminiInput.addEventListener('input', updateApiKeyStates);
+    groqInput.addEventListener('input', updateApiKeyStates);
+
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettings(); });
 }
 
@@ -1056,6 +1107,8 @@ function closeSidebar() {
 
 function openSettings() {
     document.getElementById('ap-api-key').value = STATE.settings.apiKey || '';
+    document.getElementById('ap-groq-api-key').value = STATE.settings.groqApiKey || '';
+    document.getElementById('ap-groq-model').value = STATE.settings.groqModel || 'llama-3.3-70b-versatile';
 
     // Carrega a plataforma ativa e os prompts correspondentes
     const platform = STATE.settings.activePlatform || '99freelas';
@@ -1072,6 +1125,21 @@ function openSettings() {
     document.getElementById('ap-shortcut-analyze').innerText = `${scAnalyze.modifier} + ${scAnalyze.key}`;
     document.getElementById('ap-shortcut-generate').innerText = `${scGenerate.modifier} + ${scGenerate.key}`;
 
+    // Atualizar estados visuais dos inputs de API Key
+    const geminiInput = document.getElementById('ap-api-key');
+    const groqInput = document.getElementById('ap-groq-api-key');
+    const groqModelGroup = document.getElementById('ap-groq-model-group');
+    const hasGemini = geminiInput.value.trim().length > 0;
+    const hasGroq = groqInput.value.trim().length > 0;
+
+    groqInput.disabled = hasGemini;
+    geminiInput.disabled = hasGroq;
+    groqInput.style.opacity = hasGemini ? '0.5' : '1';
+    groqInput.style.cursor = hasGemini ? 'not-allowed' : 'text';
+    geminiInput.style.opacity = hasGroq ? '0.5' : '1';
+    geminiInput.style.cursor = hasGroq ? 'not-allowed' : 'text';
+    groqModelGroup.style.display = hasGroq ? 'flex' : 'none';
+
     document.getElementById('ap-modal-overlay').classList.add('show');
 }
 
@@ -1081,6 +1149,8 @@ function closeSettings() {
 
 function saveSettings() {
     const apiKey = document.getElementById('ap-api-key').value.trim();
+    const groqApiKey = document.getElementById('ap-groq-api-key').value.trim();
+    const groqModel = document.getElementById('ap-groq-model').value;
     const activePlatform = document.getElementById('ap-platform-select').value;
     const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
@@ -1096,6 +1166,8 @@ function saveSettings() {
     STATE.settings = {
         ...STATE.settings,
         apiKey,
+        groqApiKey,
+        groqModel,
         activePlatform,
         userProfile,
         proposalPrompt,
@@ -1315,7 +1387,15 @@ function renderProjectCards(filteredProjects) {
 }
 
 async function runProjectAnalysis() {
-    if (!STATE.settings.apiKey) { showToast("⚠️ Configure sua API Key."); openSettings(); return; }
+    // Verificar se tem alguma API Key configurada
+    const hasGemini = STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0;
+    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+
+    if (!hasGemini && !hasGroq) {
+        showToast("⚠️ Configure uma API Key (Gemini ou Groq).");
+        openSettings();
+        return;
+    }
     showToast("Analisando projetos...", "loading");
 
     // Aguarda o scraping (necessário para Freelancer.com que é async)
@@ -1326,10 +1406,17 @@ async function runProjectAnalysis() {
     const projectsPayload = projects.map(p => ({ id: p.id, title: p.title, description: p.description }));
     const finalInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
 
+    // Determina qual provider usar
+    const useGroq = hasGroq;
+    const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
+    const activeProvider = useGroq ? 'groq' : 'gemini';
+
     chrome.runtime.sendMessage({
-        action: "geminiRequest",
+        action: "aiRequest",
         taskType: "FILTER_PROJECTS",
-        apiKey: STATE.settings.apiKey,
+        apiKey: activeApiKey,
+        provider: activeProvider,
+        groqModel: STATE.settings.groqModel,
         systemInstruction: finalInstruction,
         userPrompt: JSON.stringify(projectsPayload)
     }, (response) => {
@@ -1645,11 +1732,19 @@ function runProposalGeneration() {
 
     const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
 
+    // Determina qual provider usar
+    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+    const useGroq = hasGroq;
+    const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
+    const activeProvider = useGroq ? 'groq' : 'gemini';
+
     // Chama API
     chrome.runtime.sendMessage({
-        action: "geminiRequest",
+        action: "aiRequest",
         taskType: "GENERATE_PROPOSAL",
-        apiKey: STATE.settings.apiKey,
+        apiKey: activeApiKey,
+        provider: activeProvider,
+        groqModel: STATE.settings.groqModel,
         systemInstruction: systemInstruction,
         userPrompt: userPrompt
     }, (response) => {
