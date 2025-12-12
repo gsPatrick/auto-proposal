@@ -53,8 +53,16 @@ const STATE = {
     lastAutoRunUrl: '', // Para evitar loop no modo automático
     settings: {
         apiKey: '',
-        userProfile: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
-        proposalPrompt: 'Escreva uma proposta curta, direta e persuasiva. Foque em resolver o problema do cliente. Use tom profissional mas próximo.',
+        activePlatform: '99freelas', // '99freelas' ou 'freelancer'
+        // Prompts para 99freelas
+        userProfile_99freelas: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
+        proposalPrompt_99freelas: 'Escreva uma proposta curta, direta e persuasiva. Foque em resolver o problema do cliente. Use tom profissional mas próximo.',
+        // Prompts para Freelancer.com
+        userProfile_freelancer: 'I am a Senior Fullstack Developer (Node.js, React, Python). Looking for web development, automation and API projects.',
+        proposalPrompt_freelancer: 'Write a short, direct and persuasive proposal. Focus on solving the client problem. Use professional but friendly tone.',
+        // Configurações gerais (mantidas para compatibilidade)
+        userProfile: '',
+        proposalPrompt: '',
         autoProposalMode: false,
         shortcuts: {
             analyze: { modifier: 'Shift', key: 'P' },
@@ -641,6 +649,43 @@ function injectStyles() {
             min-height: 80px;
         }
 
+        /* --- SELECT (macOS Style) --- */
+        .ap-select {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--ap-glass-border);
+            border-radius: var(--ap-radius-md);
+            padding: 12px 14px;
+            color: var(--ap-text-primary) !important;
+            font-family: var(--ap-font);
+            font-size: 13px;
+            line-height: 1.5;
+            transition: all var(--ap-duration-fast) var(--ap-ease);
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            padding-right: 40px;
+        }
+
+        .ap-select:hover {
+            border-color: var(--ap-glass-border-highlight);
+        }
+
+        .ap-select:focus {
+            background-color: rgba(0, 0, 0, 0.35);
+            border-color: var(--ap-accent-color) !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2);
+        }
+
+        .ap-select option {
+            background: #2a2a2e;
+            color: #fff;
+            padding: 8px;
+        }
+
         /* --- SECTION DIVIDER --- */
         .ap-section-divider {
             height: 1px;
@@ -898,6 +943,16 @@ function createSettingsModal() {
                     <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
                 </div>
 
+                <div class="ap-section-divider"></div>
+
+                <div class="ap-input-group">
+                    <label>🌐 Plataforma Ativa</label>
+                    <select id="ap-platform-select" class="ap-select">
+                        <option value="99freelas">99freelas</option>
+                        <option value="freelancer">Freelancer.com</option>
+                    </select>
+                </div>
+
                 <div class="ap-input-group">
                     <label>👤 Seu Perfil Profissional</label>
                     <textarea id="ap-user-profile" class="ap-textarea" rows="4" placeholder="Ex: Sou desenvolvedor React Sênior..."></textarea>
@@ -944,6 +999,24 @@ function createSettingsModal() {
     document.getElementById('ap-close-modal').addEventListener('click', closeSettings);
     document.getElementById('ap-save-settings').addEventListener('click', saveSettings);
 
+    // Platform select change handler
+    const platformSelect = document.getElementById('ap-platform-select');
+    platformSelect.addEventListener('change', (e) => {
+        const platform = e.target.value;
+        // Salva os valores atuais antes de trocar
+        const currentPlatform = STATE.settings.activePlatform;
+        const currentProfile = document.getElementById('ap-user-profile').value.trim();
+        const currentPrompt = document.getElementById('ap-proposal-prompt').value.trim();
+
+        STATE.settings[`userProfile_${currentPlatform}`] = currentProfile;
+        STATE.settings[`proposalPrompt_${currentPlatform}`] = currentPrompt;
+
+        // Carrega os valores da nova plataforma
+        STATE.settings.activePlatform = platform;
+        document.getElementById('ap-user-profile').value = STATE.settings[`userProfile_${platform}`] || '';
+        document.getElementById('ap-proposal-prompt').value = STATE.settings[`proposalPrompt_${platform}`] || '';
+    });
+
     // Shortcut Logic
     const btnAnalyze = document.getElementById('ap-shortcut-analyze');
     btnAnalyze.addEventListener('click', () => recordShortcut('analyze', btnAnalyze));
@@ -983,8 +1056,13 @@ function closeSidebar() {
 
 function openSettings() {
     document.getElementById('ap-api-key').value = STATE.settings.apiKey || '';
-    document.getElementById('ap-user-profile').value = STATE.settings.userProfile;
-    document.getElementById('ap-proposal-prompt').value = STATE.settings.proposalPrompt;
+
+    // Carrega a plataforma ativa e os prompts correspondentes
+    const platform = STATE.settings.activePlatform || '99freelas';
+    document.getElementById('ap-platform-select').value = platform;
+    document.getElementById('ap-user-profile').value = STATE.settings[`userProfile_${platform}`] || STATE.settings.userProfile || '';
+    document.getElementById('ap-proposal-prompt').value = STATE.settings[`proposalPrompt_${platform}`] || STATE.settings.proposalPrompt || '';
+
     document.getElementById('ap-auto-mode').checked = STATE.settings.autoProposalMode;
 
     // Garante que as chaves existem antes de acessar
@@ -1003,13 +1081,27 @@ function closeSettings() {
 
 function saveSettings() {
     const apiKey = document.getElementById('ap-api-key').value.trim();
+    const activePlatform = document.getElementById('ap-platform-select').value;
     const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
     const autoProposalMode = document.getElementById('ap-auto-mode').checked;
 
     const shortcuts = STATE.settings.shortcuts;
 
-    STATE.settings = { apiKey, userProfile, proposalPrompt, autoProposalMode, shortcuts };
+    // Salva os prompts na plataforma ativa
+    STATE.settings[`userProfile_${activePlatform}`] = userProfile;
+    STATE.settings[`proposalPrompt_${activePlatform}`] = proposalPrompt;
+
+    // Atualiza os campos de compatibilidade com a plataforma ativa
+    STATE.settings = {
+        ...STATE.settings,
+        apiKey,
+        activePlatform,
+        userProfile,
+        proposalPrompt,
+        autoProposalMode,
+        shortcuts
+    };
 
     chrome.storage.local.set(STATE.settings, () => {
         showToast("✅ Configurações salvas.");
