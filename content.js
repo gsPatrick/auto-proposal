@@ -962,74 +962,126 @@ function scrapeProposalContext99freelas() {
 
 // Scraper de contexto para Freelancer.com
 function scrapeProposalContextFreelancer() {
-    // 1. Título do Projeto (geralmente no header da página)
-    const titleEl = document.querySelector('h1.PageProjectViewLogout-header-title, .project-header h1, app-project-view-header h1');
-    const projectTitle = titleEl ? titleEl.innerText.trim() : 'Projeto';
+    // 1. Título do Projeto (do card Project Details)
+    let projectTitle = 'Projeto';
+    const titleSelectors = [
+        '.ProjectDetailsCard-title.mobile\\:hide',  // Título desktop
+        '.ProjectDetailsCard-title',                 // Qualquer título
+        'h1.PageProjectViewLogout-header-title',
+        '.project-header h1'
+    ];
+    for (const selector of titleSelectors) {
+        const titleEl = document.querySelector(selector);
+        if (titleEl && titleEl.textContent.trim() !== 'Project Details') {
+            projectTitle = titleEl.textContent.trim();
+            break;
+        }
+    }
 
-    // 2. Descrição do Projeto
-    // Freelancer usa várias estruturas possíveis para a descrição
+    // 2. Descrição do Projeto (do card Project Details)
     let description = '';
     const descSelectors = [
-        '.project-details p',
-        '.ProjectDescription',
-        'app-project-view-description p',
-        '.PageProjectViewLogout-detail'
+        'fl-interactive-text .ContentWrapper span',  // Estrutura exata do Freelancer
+        '.ProjectDescription fl-interactive-text span',
+        '.ProjectDescription span',
+        'app-project-details-description span',
+        '.project-details p'
     ];
 
     for (const selector of descSelectors) {
         const descEl = document.querySelector(selector);
         if (descEl) {
-            const clone = descEl.cloneNode(true);
-            clone.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
-            description = clone.textContent.trim();
-            if (description) break;
+            description = descEl.textContent.trim();
+            if (description && description.length > 50) break;
         }
     }
 
-    // Se ainda não encontrou, tenta buscar todo o conteúdo da página de descrição
-    if (!description) {
-        const mainContent = document.querySelector('app-project-view, .project-view-content');
-        if (mainContent) {
-            const paragraphs = mainContent.querySelectorAll('p');
-            const texts = Array.from(paragraphs).map(p => p.textContent.trim()).filter(t => t.length > 50);
-            description = texts.join('\n\n');
+    // Fallback: buscar todo o conteúdo de ProjectDescription
+    if (!description || description.length < 50) {
+        const descContainer = document.querySelector('.ProjectDescription, app-project-details-description');
+        if (descContainer) {
+            description = descContainer.textContent.trim();
         }
     }
 
-    // 3. Budget do projeto
+    // 3. Budget do projeto (do card Project Details)
     let avgValue = 'Não informado';
-    const budgetEl = document.querySelector('.BudgetPrice, .project-budget, [data-budget]');
-    if (budgetEl) {
-        avgValue = budgetEl.textContent.trim();
+    const budgetSelectors = [
+        '.ProjectViewDetails-budget p',              // Estrutura exata
+        'app-project-details-budget p',
+        '.BudgetPrice',
+        '.project-budget'
+    ];
+    for (const selector of budgetSelectors) {
+        const budgetEl = document.querySelector(selector);
+        if (budgetEl) {
+            avgValue = budgetEl.textContent.trim();
+            if (avgValue) break;
+        }
     }
 
-    // 4. Prazo (geralmente não disponível diretamente, usar genérico)
+    // 4. Prazo (bidding ends)
     let avgTime = 'A definir';
-
-    // 5. Skills do projeto
-    let skills = '';
-    const skillEls = document.querySelectorAll('.project-skills fl-tag, .Skills fl-tag, .SkillsWrapper fl-tag');
-    if (skillEls.length > 0) {
-        skills = Array.from(skillEls).map(el => el.textContent.trim()).join(', ');
+    const timeEl = document.querySelector('.ProjectViewDetails-budget fl-relative-time span');
+    if (timeEl) {
+        avgTime = 'Bidding ends in ' + timeEl.textContent.trim();
     }
 
-    // 6. Moeda do projeto (extraída do formulário de bid)
+    // 5. Skills do projeto (do card Project Details)
+    let skills = '';
+    const skillSelectors = [
+        '.ProjectViewDetailsSkills fl-tag .Content',  // Estrutura exata
+        '.ProjectViewDetailsSkills fl-tag',
+        'app-project-details-skills fl-tag .Content',
+        'app-project-details-skills fl-tag'
+    ];
+
+    for (const selector of skillSelectors) {
+        const skillEls = document.querySelectorAll(selector);
+        if (skillEls.length > 0) {
+            skills = Array.from(skillEls).map(el => el.textContent.trim()).join(', ');
+            break;
+        }
+    }
+
+    // 6. Moeda do projeto (extraída do formulário de bid ou do budget)
     let currency = 'USD'; // Default
     const currencyEl = document.querySelector('#bidAmountInput')?.closest('.InputContainer')?.querySelector('.AfterLabel .LabelText');
     if (currencyEl) {
         currency = currencyEl.textContent.trim();
     } else {
-        // Fallback: tentar extrair do budget
-        const currencyMatch = avgValue.match(/([A-Z]{3}|[$€£])/);
+        // Fallback: tentar extrair do budget (£250.00 – 750.00 GBP)
+        const currencyMatch = avgValue.match(/([A-Z]{3})/);
         if (currencyMatch) {
             currency = currencyMatch[0];
+        } else {
+            // Tentar símbolo
+            const symbolMatch = avgValue.match(/[$€£]/);
+            if (symbolMatch) {
+                const symbolMap = { '$': 'USD', '€': 'EUR', '£': 'GBP' };
+                currency = symbolMap[symbolMatch[0]] || 'USD';
+            }
         }
     }
 
-    console.log('[Auto-Proposal] Contexto Freelancer:', { projectTitle, description: description.substring(0, 200) + '...', avgValue, skills, currency });
+    // 7. Project ID (opcional, para referência)
+    let projectId = '';
+    const idEl = document.querySelector('.ProjectDetailsFooter p');
+    if (idEl && idEl.textContent.includes('Project ID:')) {
+        projectId = idEl.textContent.replace('Project ID:', '').trim();
+    }
+
+    console.log('[Auto-Proposal] Contexto Freelancer:', {
+        projectTitle,
+        description: description.substring(0, 200) + '...',
+        avgValue,
+        skills,
+        currency,
+        projectId
+    });
 
     return {
-        clientName: projectTitle, // Usamos o título do projeto como referência
+        clientName: projectTitle,
         description: description + (skills ? `\n\nSkills: ${skills}` : ''),
         avgValue: avgValue,
         avgTime: avgTime,
