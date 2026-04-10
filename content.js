@@ -25,20 +25,34 @@ PERFIL DO USUÁRIO PARA FILTRAGEM:
 `;
 
 const PROPOSAL_SYSTEM_INSTRUCTION = `
-Você é um especialista em vendas consultivas no 99freelas.
-Sua missão é criar uma proposta comercial e definir preço e prazo baseados no PROMPT DO USUÁRIO e nos DADOS DO PROJETO.
+Você é um especialista em vendas consultivas e copywriting de alta conversão. 
+Sua missão é gerar propostas IRRESISTÍVEIS e EXTENSAS, ocupando bem o espaço disponível e demonstrando autoridade máxima.
 
-REGRAS DE SAÍDA (IMPORTANTE):
-1. Retorne APENAS um JSON válido (sem markdown blocks).
-2. Formato estrito:
-34: {
-  "message": "Texto persuasivo da proposta aqui...",
-  "price": 1500,
-  "duration": 7
+DIRETRIZES DE CONTEÚDO E ESTRUTURA:
+1. TAMANHO ALVO: A proposta deve ter entre 2000 e 2500 caracteres. Seja exaustivo e detalhado.
+2. FORMATAÇÃO: Use obrigatoriamente quebras de linha DUPLAS (\\n\\n) entre parágrafos para garantir uma leitura fluida e organizada.
+3. ESTRUTURA OBRIGATÓRIA:
+   - Introdução Impactante: Gancho que mostra que você entendeu o problema real.
+   - Análise do Problema: Demonstre que você pensou nas dificuldades técnicas do que foi pedido.
+   - Plano de Ação: Liste etapas claras de como você vai executar o projeto (use bullets/listas).
+   - Metodologia e Diferenciais: Por que sua stack ou modo de trabalho é superior.
+   - Sobre Mim/Experiência: Um parágrafo sólido vendendo sua senioridade e sucessos passados.
+   - CTA (Call to Action): Convite para reunião ou call para alinhar detalhes.
+
+REGRAS CRÍTICAS:
+- É terminantemente PROIBIDO copiar frases do anúncio. 
+- Use linguagem técnica apropriada mas acessível.
+- O texto deve parecer ter sido escrito por um humano sênior, não por um robô.
+
+REGRAS DE FORMATAÇÃO (ESTRITO):
+- Retorne APENAS um JSON válido.
+- Formato JSON:
+{
+  "message": "Texto longo, com quebras de linha \\\\n\\\\n e muito detalhado...",
+  "price": 0,
+  "duration": 0
 }
-3. "price" deve ser um NÚMERO (ex: 1500) representando o valor em Reais.
-4. "duration" deve ser um NÚMERO (ex: 7) representando dias úteis.
-5. Use o contexto do projeto para ser específico na mensagem.
+- Use \\\\n\\\\n dentro da string "message" para representar parágrafos.
 `;
 
 // Detecta qual site está sendo acessado
@@ -1473,15 +1487,43 @@ function scrapeProposalContext99freelas() {
         description = clone.textContent.trim();
     }
 
-    // 3. Valor e Prazo Médios
-    const infoEl = document.querySelector('.generic.information');
+    // 3. Valor e Prazo Médios (Busca Robusta)
     let avgValue = 'Não informado';
     let avgTime = 'Não informado';
 
+    // Estratégia 1: Selector clássico
+    const infoEl = document.querySelector('.generic.information');
     if (infoEl) {
         const bTags = infoEl.querySelectorAll('b');
         if (bTags.length >= 1) avgValue = bTags[0].innerText.trim();
         if (bTags.length >= 2) avgTime = bTags[1].innerText.trim();
+    }
+
+    // Estratégia 2: Fallback para novos layouts/classes
+    if (avgValue === 'Não informado') {
+        const labels = document.querySelectorAll('.label-projeto, .info-label, strong');
+        labels.forEach(lbl => {
+            const txt = lbl.innerText.toLowerCase();
+            if (txt.includes('valor') || txt.includes('orçamento')) {
+                const val = lbl.nextElementSibling || lbl.parentElement.querySelector('b, span:not(.info-label)');
+                if (val) avgValue = val.innerText.trim();
+            }
+            if (txt.includes('prazo')) {
+                const val = lbl.nextElementSibling || lbl.parentElement.querySelector('b, span:not(.info-label)');
+                if (val) avgTime = val.innerText.trim();
+            }
+        });
+    }
+
+    // Estratégia 3: Buscar em box-detalhes
+    if (avgValue === 'Não informado') {
+        const boxes = document.querySelectorAll('.box-projeto, .generic-box');
+        boxes.forEach(box => {
+            if (box.innerText.includes('Valor')) {
+                const matches = box.innerText.match(/R\$\s?[\d.,]+\s?-\s?[\d.,]+/i);
+                if (matches) avgValue = matches[0];
+            }
+        });
     }
 
     return { clientName, description, avgValue, avgTime };
@@ -1627,18 +1669,25 @@ function fillProposalForm99freelas(data) {
         txtProposta.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    // 2. Preencher Inputs de Valor (Oferta)
-    const inputOferta = document.getElementById('oferta');
+    // 2. Preencher Inputs de Valor (Prioridade para Oferta Final)
     const inputOfertaFinal = document.getElementById('oferta-final');
+    const inputOferta = document.getElementById('oferta');
 
-    if (inputOferta) {
+    if (inputOfertaFinal) {
+        // Preenche o valor que o freelancer deseja receber (Exato conforme IA)
+        inputOfertaFinal.value = formatCurrencyBR(data.price);
+        inputOfertaFinal.dispatchEvent(new Event('input', { bubbles: true }));
+        inputOfertaFinal.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Dispara blur para garantir que o 99freelas processe o valor
+        setTimeout(() => inputOfertaFinal.dispatchEvent(new Event('blur', { bubbles: true })), 100);
+        
+        console.log('[Auto-Proposal] Preenchendo Oferta Final:', data.price);
+    } else if (inputOferta) {
+        // Fallback caso o seletor mude ou não exista oferta-final
         inputOferta.value = formatCurrencyBR(data.price);
         inputOferta.dispatchEvent(new Event('input', { bubbles: true }));
         inputOferta.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-    if (inputOfertaFinal) {
-        inputOfertaFinal.value = formatCurrencyBR(data.price * 1.17647059);
-        inputOfertaFinal.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     // 3. Preencher Duração
@@ -1716,22 +1765,32 @@ function runProposalGeneration() {
 
     // Coleta dados
     const context = scrapeProposalContext();
+    
+    // Limita a descrição para evitar estourar o limite de tokens (TPM) do Groq/Gemini
+    const truncatedDescription = context.description.length > 5000 
+        ? context.description.substring(0, 5000) + '... (descrição cortada para economizar tokens)' 
+        : context.description;
 
     // Monta Prompt (inclui moeda se disponível)
     const currencyInfo = context.currency ? `\n    Moeda: ${context.currency}` : '';
     const userPrompt = `
     DADOS DO PROJETO:
     Cliente/Projeto: ${context.clientName}
-    Descrição: ${context.description}
+    Descrição: ${truncatedDescription}
     Orçamento/Budget: ${context.avgValue}${currencyInfo}
     Prazo Médio: ${context.avgTime}
 
     MEU PROMPT DE PROPOSTA:
     ${STATE.settings.proposalPrompt}
 
-    IMPORTANTE: O preço deve ser sugerido na moeda ${context.currency || 'do projeto'}. Retorne apenas o valor numérico no campo "price".
+    IMPORTANTE: 
+    - O campo "message" deve ser uma proposta COMPLETA, PROFISSIONAL e EXTENSA (2000-2500 caracteres).
+    - Use quebras de linha double-n (\\n\\n) para separar parágrafos e listas.
+    - O campo "price" deve ser o valor TOTAL (Bruto) sugerido para o cliente pagar.
+    - O preço deve ser sugerido na moeda ${context.currency || 'do projeto'}. 
+    - Retorne apenas o valor numérico inteiro no campo "price".
     
-    Gere o JSON com a mensagem, preço sugerido (apenas número) e prazo em dias.
+    Gere o JSON estrito com a mensagem longa e formatada, preço total sugerido e prazo em dias.
     `;
 
     const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
