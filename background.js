@@ -2,14 +2,22 @@
  * background.js
  * 
  * Service Worker responsável pela comunicação com as APIs de IA.
- * Suporta Google Gemini e Groq (OpenAI-compatible).
- * Dois modos de operação baseados no payload recebido:
- * 1. Filtragem de Projetos (Retorna JSON/Lista)
- * 2. Geração de Proposta (Retorna Texto)
+ * Suporta Google Gemini e Groq (OpenAI-compatible) com Rotação de Chaves.
  */
 
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+// Cluster de Chaves Gemini
+const GEMINI_KEYS = [
+    "AIzaSyAG-XwckWRqWGG73KL7tmybDulMkNdNW1k" // Sua chave principal
+];
+
+// Cluster de Chaves Groq 
+const GROQ_KEYS = [
+    "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", // Conta 01
+    "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"  // Conta 02
+];
 
 // -----------------------------------------------------------------------------
 // HELPER: LOGGING
@@ -26,33 +34,23 @@ function logMessage(context, message, indentLevel = 0) {
 // HELPER: CLEANUP
 // -----------------------------------------------------------------------------
 
-/**
- * Remove formatação Markdown de blocos de código (ex: ```json ... ```)
- * Útil para quando pedimos JSON para a IA e ela retorna formatado.
- */
 function cleanMarkdownCodeBlock(text) {
+    if (!text) return "";
     return text.replace(/^```(json)?\s*/i, '').replace(/\s*```$/, '');
 }
 
 // -----------------------------------------------------------------------------
-// CORE: API REQUEST
+// CORE: API REQUESTS
 // -----------------------------------------------------------------------------
 
-/**
- * Executa a requisição para o Gemini.
- * Suporta fallback automático entre modelos se atingir limites.
- * @param {string} apiKey - Chave da API.
- * @param {string} systemInstruction - Instruções do sistema.
- * @param {string} userPrompt - Prompt do usuário.
- * @param {boolean} expectJson - Se espera JSON.
- */
-async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson = false) {
-    const models = ["gemini-3.1-flash-lite-preview", "gemma-4-31b-it"];
+async function callGeminiApi(systemInstruction, userPrompt, expectJson = false) {
+    const models = ["gemini-3.1-flash-lite-preview", "gemini-1.5-flash", "gemma-4-31b-it"];
     let lastError = null;
+    const apiKey = GEMINI_KEYS[0];
 
     for (const modelId of models) {
         try {
-            logMessage('IA', `Tentando modelo: ${modelId}...`, 1);
+            logMessage('IA', `Tentando Gemini: ${modelId}...`, 1);
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
             const payload = {
@@ -76,9 +74,14 @@ async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson =
                 const errorData = await response.json();
                 const errorMessage = errorData.error?.message || `Erro ${response.status}`;
                 
-                // Se for erro de quota (429), tenta o próximo modelo
-                if (response.status === 429 || errorMessage.toLowerCase().includes('quota')) {
-                    logMessage('IA', `Cota atingida no modelo ${modelId}. Tentando fallback...`, 2);
+                const isRetryable = response.status === 429 || 
+                                    response.status === 503 || 
+                                    errorMessage.toLowerCase().includes('quota') || 
+                                    errorMessage.toLowerCase().includes('high demand') ||
+                                    errorMessage.toLowerCase().includes('overloaded');
+
+                if (isRetryable) {
+                    logMessage('IA', `Modelo ${modelId} indisponível. Tentando fallback...`, 2);
                     lastError = errorMessage;
                     continue; 
                 }
@@ -90,112 +93,99 @@ async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson =
 
             if (!textResponse) throw new Error("Resposta vazia da IA.");
 
+            let finalData = textResponse;
             if (expectJson) {
                 const cleanText = cleanMarkdownCodeBlock(textResponse);
-                return { success: true, data: JSON.parse(cleanText) };
+                finalData = JSON.parse(cleanText);
             }
-            return { success: true, data: textResponse };
+
+            return { success: true, data: finalData };
 
         } catch (error) {
             logMessage('IA', `ERRO no modelo ${modelId}: ${error.message}`, 2);
             lastError = error.message;
-            // Se for erro crítico (não quota), para aqui. Se for quota, o 'continue' no loop já resolve.
-            if (!error.message.toLowerCase().includes('quota') && !error.message.includes('429')) {
-                break;
-            }
+            const isRetryableError = error.message.toLowerCase().includes('quota') || 
+                                     error.message.toLowerCase().includes('high demand') || 
+                                     error.message.toLowerCase().includes('overloaded') ||
+                                     error.message.includes('429') ||
+                                     error.message.includes('503');
+
+            if (!isRetryableError) break;
         }
     }
-
     return { success: false, error: lastError || "Erro ao gerar resposta com Gemini." };
 }
 
-// -----------------------------------------------------------------------------
-// CORE: GROQ API REQUEST (OpenAI-compatible)
-// -----------------------------------------------------------------------------
+async function callGroqApi(model, systemInstruction, userPrompt, expectJson = false) {
+    let lastError = null;
 
-/**
- * Executa a requisição para a API Groq (OpenAI-compatible).
- * @param {string} apiKey - Chave da API Groq.
- * @param {string} model - Modelo Groq a ser usado.
- * @param {string} systemInstruction - Instrução de sistema.
- * @param {string} userPrompt - O conteúdo a ser processado.
- * @param {boolean} expectJson - Se true, tenta parsear a resposta como JSON.
- */
-async function callGroqApi(apiKey, model, systemInstruction, userPrompt, expectJson = false) {
-    logMessage('IA', `Preparando requisição Groq (${model})...`, 1);
+    for (let i = 0; i < GROQ_KEYS.length; i++) {
+        const apiKey = GROQ_KEYS[i];
+        const accountDisplay = `Conta 0${i + 1}`;
+        
+        try {
+            logMessage('GROQ', `Tentando ${accountDisplay} com modelo ${model}...`, 1);
+            console.log(`[Auto-Proposal] Usando GPT/Groq: ${accountDisplay} | Modelo: ${model}`);
 
-    const payload = {
-        model: model,
-        messages: [
-            {
-                role: "system",
-                content: systemInstruction
-            },
-            {
-                role: "user",
-                content: userPrompt
+            const payload = {
+                model: model,
+                messages: [
+                    { role: "system", content: systemInstruction },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: expectJson ? 0.2 : 0.8,
+                max_completion_tokens: 8192,
+                top_p: 0.95
+            };
+
+            if (expectJson) {
+                payload.response_format = { type: "json_object" };
             }
-        ],
-        temperature: expectJson ? 0.2 : 1.0,
-        max_completion_tokens: 8192,
-        top_p: 0.95
-    };
 
-    // Adicionar response_format para JSON mode se necessário
-    if (expectJson) {
-        payload.response_format = { type: "json_object" };
-    }
+            const response = await fetch(GROQ_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify(payload)
+            });
 
-    try {
-        const response = await fetch(GROQ_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify(payload)
-        });
+            if (!response.ok) {
+                const errorData = await response.json();
+                const errorMessage = errorData.error?.message || `Erro ${response.status}`;
+                
+                if (response.status === 429 || response.status === 503 || errorMessage.toLowerCase().includes('limit')) {
+                    logMessage('GROQ', `${accountDisplay} atingiu limite. Tentando próxima...`, 2);
+                    lastError = errorMessage;
+                    continue; 
+                }
+                throw new Error(errorMessage);
+            }
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
-        }
+            const data = await response.json();
+            const textResponse = data.choices?.[0]?.message?.content;
 
-        const data = await response.json();
-        const choice = data.choices?.[0];
+            if (!textResponse) throw new Error("Resposta vazia da IA Groq.");
 
-        if (!choice) {
-            throw new Error("Nenhuma resposta retornada pela IA Groq.");
-        }
-
-        if (choice.finish_reason === "content_filter") {
-            throw new Error("Conteúdo bloqueado pelo filtro de segurança.");
-        }
-
-        let textResponse = choice.message?.content;
-        if (!textResponse) {
-            throw new Error("Resposta vazia da IA Groq.");
-        }
-
-        // Processamento Pós-Resposta
-        if (expectJson) {
-            logMessage('IA', 'Processando resposta JSON do Groq...', 1);
-            try {
+            let finalData = textResponse;
+            if (expectJson) {
                 const cleanText = cleanMarkdownCodeBlock(textResponse);
-                const jsonResponse = JSON.parse(cleanText);
-                return { success: true, data: jsonResponse };
-            } catch (e) {
-                logMessage('IA', 'ERRO ao parsear JSON da IA Groq.', 2);
-                return { success: false, error: "A IA Groq não retornou um JSON válido." };
+                finalData = JSON.parse(cleanText);
             }
-        } else {
-            return { success: true, data: textResponse };
-        }
 
-    } catch (error) {
-        logMessage('IA', `ERRO CRÍTICO Groq: ${error.message}`, 2);
-        return { success: false, error: error.message };
+            return { success: true, data: finalData, account: accountDisplay };
+
+        } catch (error) {
+            logMessage('GROQ', `Erro na ${accountDisplay}: ${error.message}`, 2);
+            lastError = error.message;
+            const isRetryable = error.message.toLowerCase().includes('limit') || 
+                                error.message.includes('429') || 
+                                error.message.includes('503');
+            if (!isRetryable) break;
+        }
     }
+    return { success: false, error: lastError || "Todas as contas Groq falharam." };
 }
 
 // -----------------------------------------------------------------------------
@@ -203,33 +193,39 @@ async function callGroqApi(apiKey, model, systemInstruction, userPrompt, expectJ
 // -----------------------------------------------------------------------------
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-
-    // Roteador de Ações - Suporta Gemini e Groq
     if (request.action === "aiRequest" || request.action === "geminiRequest") {
-        const { apiKey, systemInstruction, userPrompt, taskType, provider, groqModel } = request;
-
-        // Determina o provider (default: gemini para compatibilidade)
-        const activeProvider = provider || 'gemini';
-        logMessage('BACKGROUND', `Recebida tarefa: ${taskType} (Provider: ${activeProvider})`);
-
-        if (!apiKey) {
-            sendResponse({ success: false, error: "API Key não fornecida." });
-            return true;
-        }
-
-        // Define se esperamos JSON (para filtragem) ou Texto (para proposta)
+        const { apiKey, systemInstruction, userPrompt, taskType, groqModel } = request;
         const expectJson = (taskType === "FILTER_PROJECTS");
 
-        // Roteia para a API correta
-        if (activeProvider === 'groq') {
-            const model = groqModel || 'llama-3.3-70b-versatile';
-            callGroqApi(apiKey, model, systemInstruction, userPrompt, expectJson)
-                .then(result => sendResponse(result));
-        } else {
-            callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson)
-                .then(result => sendResponse(result));
-        }
+        (async () => {
+            let result = { success: false, error: "Falha na inicialização." };
 
-        return true; // Mantém o canal aberto para resposta assíncrona
+            // 1. TENTA GEMINI REFORÇADO (Cluster Interno)
+            logMessage('BACKGROUND', 'Iniciando fluxo prioritário: Gemini Cluster...', 1);
+            result = await callGeminiApi(systemInstruction, userPrompt, expectJson);
+            
+            if (result.success) {
+                sendResponse({ ...result, source: "Google Gemini" });
+                return;
+            }
+            logMessage('BACKGROUND', `Gemini falhou. Verificando Groq Cluster...`, 2);
+
+            // 2. TENTA GROQ CLUSTER (Fallback Final)
+            logMessage('BACKGROUND', 'Iniciando fluxo Groq Cluster...', 1);
+            const model = groqModel || 'llama-3.1-8b-instant';
+            result = await callGroqApi(model, systemInstruction, userPrompt, expectJson);
+            
+            if (result.success) {
+                sendResponse({ ...result, source: `Groq (${result.account || 'Reserva'})` });
+                return;
+            }
+
+            sendResponse({ 
+                success: false, 
+                error: `Todas as IAs falharam.\nDetalhe: ${result.error || 'Erro desconhecido'}` 
+            });
+        })();
+
+        return true; 
     }
 });

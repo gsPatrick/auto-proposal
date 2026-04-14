@@ -961,26 +961,7 @@ function createSettingsModal() {
             </div>
             
             <div class="ap-modal-body">
-                <div class="ap-input-group">
-                    <label>🔑 Google Gemini API Key</label>
-                    <input type="password" id="ap-api-key" class="ap-input" placeholder="Cole sua chave (AIza...)">
-                    <small style="color: var(--ap-text-tertiary); font-size: 11px;">Deixe vazio para usar Groq</small>
-                </div>
-
                 <div class="ap-section-divider"></div>
-
-                <div class="ap-input-group">
-                    <label>⚡ Groq API Key</label>
-                    <input type="password" id="ap-groq-api-key" class="ap-input" placeholder="Cole sua chave Groq (gsk_...)">
-                    <small style="color: var(--ap-text-tertiary); font-size: 11px;">Deixe vazio para usar Gemini</small>
-                </div>
-
-                <div class="ap-input-group" id="ap-groq-model-group">
-                    <label>🤖 Modelo Groq</label>
-                    <select id="ap-groq-model" class="ap-select">
-                        <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Recomendado)</option>
-                        <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Rápido)</option>
-                        <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
                         <option value="openai/gpt-oss-20b">GPT OSS 20B (Muito Rápido)</option>
                         <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B (Preview)</option>
                         <option value="qwen/qwen3-32b">Qwen3 32B (Preview)</option>
@@ -1070,31 +1051,7 @@ function createSettingsModal() {
     const btnGenerate = document.getElementById('ap-shortcut-generate');
     btnGenerate.addEventListener('click', () => recordShortcut('generate', btnGenerate));
 
-    // Lógica de bloqueio mútuo entre API Keys (Gemini <-> Groq)
-    const geminiInput = document.getElementById('ap-api-key');
-    const groqInput = document.getElementById('ap-groq-api-key');
-    const groqModelGroup = document.getElementById('ap-groq-model-group');
-
-    function updateApiKeyStates() {
-        const hasGemini = geminiInput.value.trim().length > 0;
-        const hasGroq = groqInput.value.trim().length > 0;
-
-        // Desabilitar input oposto se um estiver preenchido
-        groqInput.disabled = hasGemini;
-        geminiInput.disabled = hasGroq;
-
-        // Visual de desabilitado
-        groqInput.style.opacity = hasGemini ? '0.5' : '1';
-        groqInput.style.cursor = hasGemini ? 'not-allowed' : 'text';
-        geminiInput.style.opacity = hasGroq ? '0.5' : '1';
-        geminiInput.style.cursor = hasGroq ? 'not-allowed' : 'text';
-
-        // Mostrar/esconder seletor de modelo Groq
-        groqModelGroup.style.display = hasGroq ? 'flex' : 'none';
-    }
-
-    geminiInput.addEventListener('input', updateApiKeyStates);
-    groqInput.addEventListener('input', updateApiKeyStates);
+    // Configurações de API Key agora são internas (Cluster)
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettings(); });
 }
@@ -1127,11 +1084,6 @@ function closeSidebar() {
 }
 
 function openSettings() {
-    document.getElementById('ap-api-key').value = STATE.settings.apiKey || '';
-    document.getElementById('ap-groq-api-key').value = STATE.settings.groqApiKey || '';
-    document.getElementById('ap-groq-model').value = STATE.settings.groqModel || 'llama-3.3-70b-versatile';
-
-    // Carrega a plataforma ativa e os prompts correspondentes
     const platform = STATE.settings.activePlatform || '99freelas';
     document.getElementById('ap-platform-select').value = platform;
     document.getElementById('ap-user-profile').value = STATE.settings[`userProfile_${platform}`] || STATE.settings.userProfile || '';
@@ -1146,20 +1098,7 @@ function openSettings() {
     document.getElementById('ap-shortcut-analyze').innerText = `${scAnalyze.modifier} + ${scAnalyze.key}`;
     document.getElementById('ap-shortcut-generate').innerText = `${scGenerate.modifier} + ${scGenerate.key}`;
 
-    // Atualizar estados visuais dos inputs de API Key
-    const geminiInput = document.getElementById('ap-api-key');
-    const groqInput = document.getElementById('ap-groq-api-key');
-    const groqModelGroup = document.getElementById('ap-groq-model-group');
-    const hasGemini = geminiInput.value.trim().length > 0;
-    const hasGroq = groqInput.value.trim().length > 0;
-
-    groqInput.disabled = hasGemini;
-    geminiInput.disabled = hasGroq;
-    groqInput.style.opacity = hasGemini ? '0.5' : '1';
-    groqInput.style.cursor = hasGemini ? 'not-allowed' : 'text';
-    geminiInput.style.opacity = hasGroq ? '0.5' : '1';
-    geminiInput.style.cursor = hasGroq ? 'not-allowed' : 'text';
-    groqModelGroup.style.display = hasGroq ? 'flex' : 'none';
+    // Atualizar estados visuais
 
     document.getElementById('ap-modal-overlay').classList.add('show');
 }
@@ -1169,9 +1108,7 @@ function closeSettings() {
 }
 
 function saveSettings() {
-    const apiKey = document.getElementById('ap-api-key').value.trim();
-    const groqApiKey = document.getElementById('ap-groq-api-key').value.trim();
-    const groqModel = document.getElementById('ap-groq-model').value;
+    // Configurações agora são internas
     const activePlatform = document.getElementById('ap-platform-select').value;
     const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
@@ -1183,12 +1120,9 @@ function saveSettings() {
     STATE.settings[`userProfile_${activePlatform}`] = userProfile;
     STATE.settings[`proposalPrompt_${activePlatform}`] = proposalPrompt;
 
-    // Atualiza os campos de compatibilidade com a plataforma ativa
+    // Atualiza o estado global
     STATE.settings = {
         ...STATE.settings,
-        apiKey,
-        groqApiKey,
-        groqModel,
         activePlatform,
         userProfile,
         proposalPrompt,
@@ -1435,8 +1369,8 @@ async function runProjectAnalysis() {
     chrome.runtime.sendMessage({
         action: "aiRequest",
         taskType: "FILTER_PROJECTS",
-        apiKey: activeApiKey,
-        provider: activeProvider,
+        apiKey: STATE.settings.apiKey,
+        groqApiKey: STATE.settings.groqApiKey,
         groqModel: STATE.settings.groqModel,
         systemInstruction: finalInstruction,
         userPrompt: JSON.stringify(projectsPayload)
@@ -1773,10 +1707,8 @@ function runProposalGeneration() {
     // Coleta dados
     const context = scrapeProposalContext();
     
-    // Limita a descrição para evitar estourar o limite de tokens (TPM) do Groq/Gemini
-    const truncatedDescription = context.description.length > 5000 
-        ? context.description.substring(0, 5000) + '... (descrição cortada para economizar tokens)' 
-        : context.description;
+    // Envia a descrição COMPLETA do projeto conforme solicitado (sem cortes de tokens)
+    const truncatedDescription = context.description;
 
     // Monta Prompt (inclui moeda se disponível)
     const currencyInfo = context.currency ? `\n    Moeda: ${context.currency}` : '';
@@ -1807,12 +1739,12 @@ function runProposalGeneration() {
     const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
     const activeProvider = useGroq ? 'groq' : 'gemini';
 
-    // Chama API
+    // Chama API (Suporta fallback global Gemini -> Groq)
     chrome.runtime.sendMessage({
         action: "aiRequest",
         taskType: "GENERATE_PROPOSAL",
-        apiKey: activeApiKey,
-        provider: activeProvider,
+        apiKey: STATE.settings.apiKey,
+        groqApiKey: STATE.settings.groqApiKey,
         groqModel: STATE.settings.groqModel,
         systemInstruction: systemInstruction,
         userPrompt: userPrompt
@@ -1821,6 +1753,10 @@ function runProposalGeneration() {
             console.error("[Auto-Proposal] Error:", response?.error);
             showToast("❌ Erro ao gerar proposta.");
             return;
+        }
+
+        if (response.source) {
+            console.log(`%c[Auto-Proposal] Proposta gerada com sucesso via ${response.source}`, "color: #4CAF50; font-weight: bold;");
         }
 
         let data = response.data; // Pode vir como String ou Objeto
