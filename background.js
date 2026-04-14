@@ -40,85 +40,73 @@ function cleanMarkdownCodeBlock(text) {
 
 /**
  * Executa a requisição para o Gemini.
+ * Suporta fallback automático entre modelos se atingir limites.
  * @param {string} apiKey - Chave da API.
- * @param {string} systemInstruction - Instrução de sistema (Perfil de Filtragem ou Perfil de Proposta).
- * @param {string} userPrompt - O conteúdo a ser processado (Lista de projetos ou Detalhes do projeto).
- * @param {boolean} expectJson - Se true, tenta parsear a resposta como JSON (para filtragem).
+ * @param {string} systemInstruction - Instruções do sistema.
+ * @param {string} userPrompt - Prompt do usuário.
+ * @param {boolean} expectJson - Se espera JSON.
  */
 async function callGeminiApi(apiKey, systemInstruction, userPrompt, expectJson = false) {
-    const url = `${GEMINI_API_URL}?key=${apiKey}`;
+    const models = ["gemini-3.1-flash-lite-preview", "gemma-4-31b-it"];
+    let lastError = null;
 
-    logMessage('IA', 'Preparando requisição...', 1);
+    for (const modelId of models) {
+        try {
+            logMessage('IA', `Tentando modelo: ${modelId}...`, 1);
+            
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: {
+                    temperature: expectJson ? 0.2 : 0.7,
+                    topP: 0.95,
+                    maxOutputTokens: 2048,
+                    responseMimeType: expectJson ? "application/json" : "text/plain"
+                }
+            };
 
-    const payload = {
-        contents: [{
-            parts: [{ text: userPrompt }]
-        }],
-        systemInstruction: {
-            parts: [{ text: systemInstruction }]
-        },
-        generationConfig: {
-            temperature: expectJson ? 0.2 : 1.0, // Menor temperatura para JSON (mais determinístico)
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 8192,
-            responseMimeType: expectJson ? "application/json" : "text/plain"
-        },
-        safetySettings: [
-            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_ONLY_HIGH" },
-            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_ONLY_HIGH" },
-            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_ONLY_HIGH" },
-            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_ONLY_HIGH" }
-        ]
-    };
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-    try {
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `HTTP Error ${response.status}`);
-        }
-
-        const data = await response.json();
-        const candidate = data.candidates?.[0];
-
-        if (!candidate) {
-            throw new Error("Nenhum candidato retornado pela IA.");
-        }
-
-        if (candidate.finishReason === "SAFETY") {
-            throw new Error("Conteúdo bloqueado pelas configurações de segurança.");
-        }
-
-        let textResponse = candidate.content?.parts?.[0]?.text;
-        if (!textResponse) {
-            throw new Error("Resposta vazia da IA.");
-        }
-
-        // Processamento Pós-Resposta
-        if (expectJson) {
-            logMessage('IA', 'Processando resposta JSON...', 1);
-            try {
-                const cleanText = cleanMarkdownCodeBlock(textResponse);
-                const jsonResponse = JSON.parse(cleanText);
-                return { success: true, data: jsonResponse };
-            } catch (e) {
-                logMessage('IA', 'ERRO ao parsear JSON da IA.', 2);
-                return { success: false, error: "A IA não retornou um JSON válido." };
+            if (!response.ok) {
+                const errorData = await response.json();
+                const errorMessage = errorData.error?.message || `Erro ${response.status}`;
+                
+                // Se for erro de quota (429), tenta o próximo modelo
+                if (response.status === 429 || errorMessage.toLowerCase().includes('quota')) {
+                    logMessage('IA', `Cota atingida no modelo ${modelId}. Tentando fallback...`, 2);
+                    lastError = errorMessage;
+                    continue; 
+                }
+                throw new Error(errorMessage);
             }
-        } else {
-            return { success: true, data: textResponse };
-        }
 
-    } catch (error) {
-        logMessage('IA', `ERRO CRÍTICO: ${error.message}`, 2);
-        return { success: false, error: error.message };
+            const data = await response.json();
+            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!textResponse) throw new Error("Resposta vazia da IA.");
+
+            if (expectJson) {
+                const cleanText = cleanMarkdownCodeBlock(textResponse);
+                return { success: true, data: JSON.parse(cleanText) };
+            }
+            return { success: true, data: textResponse };
+
+        } catch (error) {
+            logMessage('IA', `ERRO no modelo ${modelId}: ${error.message}`, 2);
+            lastError = error.message;
+            // Se for erro crítico (não quota), para aqui. Se for quota, o 'continue' no loop já resolve.
+            if (!error.message.toLowerCase().includes('quota') && !error.message.includes('429')) {
+                break;
+            }
+        }
     }
+
+    return { success: false, error: lastError || "Erro ao gerar resposta com Gemini." };
 }
 
 // -----------------------------------------------------------------------------
