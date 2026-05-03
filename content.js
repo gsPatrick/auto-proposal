@@ -64,9 +64,11 @@ Ele não atua como executor de tarefas, mas como parceiro técnico estratégico,
   `;
 
 // Detecta qual site está sendo acessado
-const CURRENT_SITE = window.location.hostname.includes('freelancer.com')
-    ? 'freelancer'
-    : '99freelas';
+const CURRENT_SITE = (window.location.hostname.includes('workana.com') || window.location.hostname.includes('workana.com.br'))
+    ? 'workana'
+    : window.location.hostname.includes('freelancer.com')
+        ? 'freelancer'
+        : '99freelas';
 
 const STATE = {
     isSidebarOpen: false,
@@ -85,13 +87,16 @@ const STATE = {
         preferredProvider: 'openai',     // Provider preferido
         apiUrl: 'https://geral-auto-proposal-api.r954jc.easypanel.host', // Sua API em produção
         useBackend: true,               // Ativado por padrão agora que está no ar
-        activePlatform: '99freelas', // '99freelas' ou 'freelancer'
+        activePlatform: CURRENT_SITE, // Tenta usar a plataforma atual
         // Prompts para 99freelas
         userProfile_99freelas: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
         proposalPrompt_99freelas: 'Escreva uma proposta curta, direta e persuasiva. Foque em resolver o problema do cliente. Use tom profissional mas próximo.',
         // Prompts para Freelancer.com
         userProfile_freelancer: 'I am a Senior Fullstack Developer (Node.js, React, Python). Looking for web development, automation and API projects.',
         proposalPrompt_freelancer: 'Write a short, direct and persuasive proposal. Focus on solving the client problem. Use professional but friendly tone.',
+        // Prompts para Workana
+        userProfile_workana: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
+        proposalPrompt_workana: 'Escreva uma proposta curta, direta e persuasiva. Foque em resolver o problema do cliente. Use tom profissional mas próximo.',
         // Configurações gerais (mantidas para compatibilidade)
         userProfile: '',
         proposalPrompt: '',
@@ -1335,7 +1340,7 @@ function renderSidebarContent() {
                 <div id="ap-login-error" class="ap-login-error">Credenciais inválidas.</div>
                 <button type="submit" id="ap-login-btn" class="ap-login-button">Entrar no Sistema</button>
             </form>
-            <div class="ap-footer" style="margin-top: auto; padding-top: 20px;">v1.0.1 • Multi-User</div>
+            <div class="ap-footer" style="margin-top: auto; padding-top: 20px;">v1.0.3 • Multi-User</div>
         `;
         contentContainer.appendChild(loginContainer);
 
@@ -1357,7 +1362,10 @@ function renderSidebarContent() {
                     ${avatarHtml}
                     <div>
                         <h2 style="margin-bottom: 2px; font-size: 15px;">Projetos em Potencial</h2>
-                        <span style="font-size: 11px; color: var(--ap-text-secondary);">${STATE.user.name}</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 11px; color: var(--ap-text-secondary);">${STATE.user.name}</span>
+                            <span style="font-size: 9px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); color: var(--ap-accent-color); font-weight: 700; text-transform: uppercase;">${CURRENT_SITE}</span>
+                        </div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 6px;">
@@ -1379,7 +1387,7 @@ function renderSidebarContent() {
                     <p>Use o atalho para analisar.</p>
                 </div>
             </div>
-            <div class="ap-footer">Auto-Proposal AI • v1.0.1</div>
+            <div class="ap-footer">Auto-Proposal AI • v1.0.3</div>
         `;
         contentContainer.appendChild(mainScreen);
 
@@ -1603,6 +1611,7 @@ function createSettingsModal() {
                     <select id="ap-platform-select" class="ap-select">
                         <option value="99freelas">99freelas</option>
                         <option value="freelancer">Freelancer.com</option>
+                        <option value="workana">Workana</option>
                     </select>
                 </div>
 
@@ -2089,17 +2098,15 @@ async function runProjectAnalysis() {
 
 // Dispatcher: escolhe a função correta baseada no site
 function scrapeProposalContext() {
-    if (CURRENT_SITE === 'freelancer') {
-        return scrapeProposalContextFreelancer();
-    }
+    if (CURRENT_SITE === 'workana') return scrapeProposalContextWorkana();
+    if (CURRENT_SITE === 'freelancer') return scrapeProposalContextFreelancer();
     return scrapeProposalContext99freelas();
 }
 
 // Dispatcher: escolhe a função correta baseada no site
 function fillProposalForm(data) {
-    if (CURRENT_SITE === 'freelancer') {
-        return fillProposalFormFreelancer(data);
-    }
+    if (CURRENT_SITE === 'workana') return fillProposalFormWorkana(data);
+    if (CURRENT_SITE === 'freelancer') return fillProposalFormFreelancer(data);
     return fillProposalForm99freelas(data);
 }
 
@@ -2290,6 +2297,25 @@ function scrapeProposalContextFreelancer() {
     };
 }
 
+function scrapeProposalContextWorkana() {
+    console.log("[Auto-Proposal] Scraping Workana...");
+    const title = document.querySelector('.project-name')?.innerText?.trim() || 
+                  document.querySelector('#productName .title')?.innerText?.trim() || "Projeto Workana";
+    const description = document.querySelector('.specification')?.innerText?.trim() || "Sem descrição";
+    
+    // Budget range
+    const budgetEl = document.querySelector('.budget');
+    const budgetText = budgetEl ? budgetEl.innerText.trim() : "";
+    
+    return {
+        clientName: title,
+        description: description,
+        avgValue: budgetText || "A combinar",
+        avgTime: "Não informado",
+        currency: "BRL"
+    };
+}
+
 // Preenchimento de formulário para 99freelas
 function fillProposalForm99freelas(data) {
     // Data: { message, price, duration }
@@ -2373,12 +2399,42 @@ function fillProposalFormFreelancer(data) {
     }
 }
 
+function fillProposalFormWorkana(data) {
+    console.log("[Auto-Proposal] Filling Workana Form...", data);
+    
+    // 1. Detalhes da Proposta
+    const bidContent = document.getElementById('BidContent');
+    if (bidContent) {
+        bidContent.value = data.message;
+        bidContent.dispatchEvent(new Event('input', { bubbles: true }));
+        bidContent.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // 2. Valor Total (Amount)
+    const amountInput = document.getElementById('Amount');
+    if (amountInput && data.price) {
+        amountInput.value = data.price;
+        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        amountInput.dispatchEvent(new Event('change', { bubbles: true }));
+        amountInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    }
+
+    // 3. Prazo de Entrega
+    const deliveryInput = document.getElementById('BidDeliveryTime');
+    if (deliveryInput && data.duration) {
+        deliveryInput.value = `${data.duration} dias`;
+        deliveryInput.dispatchEvent(new Event('input', { bubbles: true }));
+        deliveryInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
 function runProposalGeneration() {
-    // Validação de URL (aceita 99freelas e Freelancer.com)
+    // Validação de URL (aceita 99freelas, Freelancer.com e Workana)
     const isBidPage99freelas = window.location.href.includes("/project/bid/");
     const isBidPageFreelancer = CURRENT_SITE === 'freelancer' && window.location.href.includes("/projects/");
+    const isBidPageWorkana = CURRENT_SITE === 'workana' && window.location.href.includes("/messages/bid/");
 
-    if (!isBidPage99freelas && !isBidPageFreelancer) {
+    if (!isBidPage99freelas && !isBidPageFreelancer && !isBidPageWorkana) {
         showToast("❌ Funcionalidade disponível apenas na página de enviar proposta.");
         return;
     }
@@ -2437,7 +2493,7 @@ function runProposalGeneration() {
         preferredProvider: STATE.settings.preferredProvider,
         apiUrl: STATE.settings.apiUrl,
         useBackend: STATE.settings.useBackend,
-        platform: STATE.settings.activePlatform,
+        platform: CURRENT_SITE,
         proposalData: {
             title: context.clientName,
             description: truncatedDescription,
@@ -2537,7 +2593,9 @@ function init() {
         'apiUrl',
         'useBackend',
         'geminiKeys',
-        'groqKeys'
+        'groqKeys',
+        'userProfile_workana',
+        'proposalPrompt_workana'
     ], (result) => {
         // API Keys & Clusters
         if (result.apiKey) STATE.settings.apiKey = result.apiKey;
@@ -2566,6 +2624,8 @@ function init() {
         if (result.proposalPrompt_99freelas) STATE.settings.proposalPrompt_99freelas = result.proposalPrompt_99freelas;
         if (result.userProfile_freelancer) STATE.settings.userProfile_freelancer = result.userProfile_freelancer;
         if (result.proposalPrompt_freelancer) STATE.settings.proposalPrompt_freelancer = result.proposalPrompt_freelancer;
+        if (result.userProfile_workana) STATE.settings.userProfile_workana = result.userProfile_workana;
+        if (result.proposalPrompt_workana) STATE.settings.proposalPrompt_workana = result.proposalPrompt_workana;
 
         // Modo automático
         if (result.autoProposalMode !== undefined) STATE.settings.autoProposalMode = result.autoProposalMode;
@@ -2649,13 +2709,13 @@ function init() {
 
         const currentUrl = window.location.href;
 
-        // Detecta página de bid para ambos os sites
+        // Detecta página de bid para todos os sites
         const isBidPage99freelas = currentUrl.includes("/project/bid/");
         const isBidPageFreelancer = CURRENT_SITE === 'freelancer' && currentUrl.includes("/projects/");
-        const isBidPage = isBidPage99freelas || isBidPageFreelancer;
+        const isBidPageWorkana = CURRENT_SITE === 'workana' && currentUrl.includes("/messages/bid/");
+        const isBidPage = isBidPage99freelas || isBidPageFreelancer || isBidPageWorkana;
 
         // Se não estamos na página de bid, limpamos o lastAutoRunUrl
-        // Isso garante que se o usuário voltar para a página, o script rode novamente
         if (!isBidPage) {
             STATE.lastAutoRunUrl = '';
             return;
@@ -2664,22 +2724,17 @@ function init() {
         // Se estamos na página de bid E ainda não rodamos para esta URL específica
         if (isBidPage && STATE.lastAutoRunUrl !== currentUrl) {
 
-            // FIX IMPORTANTE: Verifica se o formulário já existe no DOM
-            // Evita rodar em página de "Loading..." ou antes do render completo
             let formIsReady = false;
 
             if (CURRENT_SITE === 'freelancer') {
-                // Para Freelancer.com, espera o componente app-bid-form carregar completamente
-                // O elemento 'descriptionTextArea' dentro de app-bid-form indica que o form está pronto
                 const bidForm = document.querySelector('app-bid-form');
                 const descriptionTextArea = document.getElementById('descriptionTextArea');
                 formIsReady = bidForm && descriptionTextArea;
-
-                if (bidForm && !descriptionTextArea) {
-                    console.log("[Auto-Proposal] Freelancer: app-bid-form encontrado, aguardando descriptionTextArea...");
-                }
+            } else if (CURRENT_SITE === 'workana') {
+                const bidContent = document.getElementById('BidContent');
+                formIsReady = !!bidContent;
             } else {
-                // Para 99freelas, verifica o campo proposta
+                // 99freelas
                 const proposalForm = document.getElementById('proposta');
                 formIsReady = !!proposalForm;
             }
@@ -2687,12 +2742,11 @@ function init() {
             if (formIsReady) {
                 STATE.lastAutoRunUrl = currentUrl;
                 console.log("[Auto-Proposal] Página de Proposta detectada e carregada. Iniciando modo automático...");
-                console.log("[Auto-Proposal] NOTA: A proposta será preenchida mas NÃO será enviada automaticamente.");
                 showToast("🤖 Modo Auto: Gerando proposta...", "loading");
                 runProposalGeneration();
             }
         }
-    }, 1000); // Intervalo de checagem mais rápido (1s)
+    }, 1000);
 }
 
 function getUserPhotoUrl(email) {
@@ -2800,7 +2854,7 @@ async function checkForUpdates() {
     try {
         const response = await fetch('https://geral-auto-proposal-dashboard.r954jc.easypanel.host/version.json');
         const data = await response.json();
-        const currentVersion = "1.0.1";
+        const currentVersion = "1.0.3";
 
         if (data.version > currentVersion) {
             const sidebar = document.getElementById('ap-sidebar');
