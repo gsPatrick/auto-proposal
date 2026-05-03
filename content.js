@@ -34,33 +34,34 @@ O profissional que você representa é Patrick Gomes Siqueira, Desenvolvedor Ful
 Patrick é Top Freelancer Plus no 99Freelas, está entre os Top 60–100 profissionais da plataforma, possui avaliação 5 estrelas e histórico consistente de projetos entregues com alto nível técnico, organização e responsabilidade.
 Ele não atua como executor de tarefas, mas como parceiro técnico estratégico, responsável por decisões que impactam diretamente o resultado do projeto e o sucesso do cliente.
 
-🎯 OBJETIVO PRINCIPAL
-Gerar uma proposta profissional, formal, humana e altamente persuasiva. Retorne APENAS um JSON válido.
-
-📐 REGRAS OBRIGATÓRIAS DO TEXTO
-✔ 100% Formal — Sem informalidades, emojis ou linguagem coloquial
-✔ 100% Confiante — Proibido: "posso", "consigo", "tentarei". Usar: "realizarei", "implementarei", "entregarei"
-✔ Humano, direto e profissional — Texto fluido, sem frases genéricas
-✔ Sem redundâncias — Nunca repetir o texto do projeto
-✔ Texto em funil — Cada parágrafo deve aumentar a confiança
-
-🧩 ESTRUTURA OBRIGATÓRIA (Dentro do campo "message"):
-1. SAUDAÇÃO INICIAL — Nome, senioridade, interesse estratégico no projeto
-2. ENTENDIMENTO DO PROJETO — Problema real, impacto de negócio (sem copiar o enunciado)
-3. SOLUÇÃO — Como o problema será resolvido, método e domínio
-4. ORÇAMENTO — Apresentado com custo-benefício
-5. PRAZO — Apresentado como realista e atrativo
-6. FINALIZAÇÃO (EXATA): "Fico na expectativa de seu pronunciamento e me encontro às ordens para maiores esclarecimentos.\\nSaudações,\\nPatrick Siqueira"
-
-REGRAS DE FORMATAÇÃO (ESTRITO):
-1. Retorne APENAS um JSON válido.
-2. Formato JSON:
-{
-  "message": "Texto completo e persuasivo aqui...",
-  "price": 0,
-  "duration": 0
-}
-`;
+  🎯 OBJETIVO PRINCIPAL
+  Gerar uma proposta profissional, formal, humana e altamente persuasiva. Retorne APENAS um JSON válido.
+  
+  📐 REGRAS OBRIGATÓRIAS DO TEXTO
+  ✔ LIMITE DE TAMANHO: A proposta deve ter no MÁXIMO 2.500 caracteres. Nunca ultrapasse este limite.
+  ✔ 100% Formal — Sem informalidades, emojis ou linguagem coloquial
+  ✔ 100% Confiante — Proibido: "posso", "consigo", "tentarei". Usar: "realizarei", "implementarei", "entregarei"
+  ✔ Humano, direto e profissional — Texto fluido, sem frases genéricas
+  ✔ Sem redundâncias — Nunca repetir o texto do projeto
+  ✔ Texto em funil — Cada parágrafo deve aumentar a confiança
+  
+  🧩 ESTRUTURA OBRIGATÓRIA (Dentro do campo "message"):
+  1. SAUDAÇÃO INICIAL — Nome, senioridade, interesse estratégico no projeto
+  2. ENTENDIMENTO DO PROJETO — Problema real, impacto de negócio (sem copiar o enunciado)
+  3. SOLUÇÃO — Como o problema será resolvido, método e domínio
+  4. ORÇAMENTO — Apresentado com custo-benefício
+  5. PRAZO — Apresentado como realista e atrativo
+  6. FINALIZAÇÃO (EXATA): "Fico na expectativa de seu pronunciamento e me encontro às ordens para maiores esclarecimentos.\\nSaudações,\\nPatrick Siqueira"
+  
+  REGRAS DE FORMATAÇÃO (ESTRITO):
+  1. Retorne APENAS um JSON válido.
+  2. Formato JSON:
+  {
+    "message": "Texto completo e persuasivo aqui...",
+    "price": 0,
+    "duration": 0
+  }
+  `;
 
 // Detecta qual site está sendo acessado
 const CURRENT_SITE = window.location.hostname.includes('freelancer.com')
@@ -72,10 +73,18 @@ const STATE = {
     isHoveringEdge: false,
     scrapedProjects: [],
     lastAutoRunUrl: '', // Para evitar loop no modo automático
+    user: null, // Usuário logado na extensão
     settings: {
         apiKey: '',  // Gemini API Key
         groqApiKey: '', // Groq API Key
         groqModel: 'llama-3.3-70b-versatile', // Modelo Groq padrão
+        openaiKeys: [],    // OpenAI API Keys (cluster)
+        claudeKeys: [],    // Anthropic Claude API Keys (cluster)
+        openaiModel: 'gpt-4o-mini',     // Modelo OpenAI padrão
+        claudeModel: 'claude-haiku-4-5', // Modelo Claude padrão
+        preferredProvider: 'openai',     // Provider preferido
+        apiUrl: 'https://geral-auto-proposal-api.r954jc.easypanel.host', // Sua API em produção
+        useBackend: true,               // Ativado por padrão agora que está no ar
         activePlatform: '99freelas', // '99freelas' ou 'freelancer'
         // Prompts para 99freelas
         userProfile_99freelas: 'Sou um Desenvolvedor Fullstack Sênior (Node.js, React, Python). Busco projetos de desenvolvimento web, automação e APIs.',
@@ -159,6 +168,120 @@ function injectStyles() {
             /* --- FONTE --- */
             --ap-font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", sans-serif;
             --ap-font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
+        }
+
+        /* --- LOGIN SCREEN --- */
+        .ap-login-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: var(--ap-spacing-xl);
+            text-align: center;
+        }
+
+        .ap-login-logo {
+            font-size: 24px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: var(--ap-accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .ap-login-subtitle {
+            color: var(--ap-text-secondary);
+            font-size: 14px;
+            margin-bottom: 32px;
+        }
+
+        .ap-login-form {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .ap-login-input-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .ap-login-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--ap-text-secondary);
+            margin-left: 4px;
+        }
+
+        .ap-login-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--ap-glass-border);
+            border-radius: var(--ap-radius-md);
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .ap-login-input:focus {
+            outline: none;
+            border-color: var(--ap-accent-color);
+            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 4px rgba(10, 132, 255, 0.15);
+        }
+
+        .ap-login-button {
+            margin-top: 12px;
+            background: var(--ap-accent-gradient);
+            border: none;
+            border-radius: var(--ap-radius-md);
+            padding: 14px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--ap-shadow-sm);
+        }
+
+        .ap-login-button:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--ap-shadow-glow);
+        }
+
+        .ap-login-button:active {
+            transform: translateY(0);
+        }
+
+        .ap-login-error {
+            color: var(--ap-danger);
+            font-size: 12px;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .ap-logout-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--ap-radius-md);
+            padding: 8px 12px;
+            color: var(--ap-text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ap-logout-btn:hover {
+            background: rgba(255, 69, 58, 0.1);
+            color: var(--ap-danger);
+            border-color: rgba(255, 69, 58, 0.2);
         }
 
         /* --- SIDEBAR CONTAINER (macOS Vibrancy) --- */
@@ -394,6 +517,8 @@ function injectStyles() {
             transition-duration: 0.1s;
         }
 
+        .ap-hidden { display: none !important; }
+
         .ap-card-title {
             font-size: 13px;
             font-weight: 600;
@@ -529,19 +654,21 @@ function injectStyles() {
             background: var(--ap-glass-bg);
             backdrop-filter: blur(72px) saturate(190%);
             -webkit-backdrop-filter: blur(72px) saturate(190%);
-            width: 480px;
+            width: 540px !important; /* Força a largura fixa */
+            max-width: 90vw;
             max-height: 85vh;
             border-radius: var(--ap-radius-xl);
             border: 1px solid var(--ap-glass-border-highlight);
             box-shadow: 
                 0 0 0 0.5px rgba(255,255,255,0.1) inset,
                 var(--ap-shadow-lg);
-            display: flex;
-            flex-direction: column;
+            display: flex !important;
+            flex-direction: column !important;
             color: var(--ap-text-primary);
             transform: scale(0.96) translateY(10px);
             transition: transform 0.3s var(--ap-ease-spring);
             overflow: hidden;
+            position: relative;
         }
         
         #ap-modal-overlay.show .ap-modal { 
@@ -607,13 +734,14 @@ function injectStyles() {
 
         /* --- MODAL BODY (Scrollable) --- */
         .ap-modal-body {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 24px;
-            padding: 20px;
-            margin-bottom: 0;
+            flex: 1 !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px !important;
+            padding: 24px !important;
+            min-height: 0; /* Essencial para scroll em flexbox */
         }
 
         .ap-modal-body::-webkit-scrollbar { width: 8px; }
@@ -668,8 +796,11 @@ function injectStyles() {
         }
 
         .ap-textarea {
+            display: block !important;
+            width: 100% !important;
+            min-height: 100px !important;
             resize: vertical;
-            min-height: 80px;
+            box-sizing: border-box;
         }
 
         /* --- SELECT (macOS Style) --- */
@@ -909,6 +1040,119 @@ function formatCurrencyBR(value) {
 // 3. COMPONENTES DE UI
 // -----------------------------------------------------------------------------
 
+function renderSidebarContent() {
+    const sidebar = document.getElementById('ap-sidebar');
+    if (!sidebar) return;
+
+    // Remove conteúdo anterior mantendo o handle
+    const handle = document.getElementById('ap-sidebar-handle');
+    sidebar.innerHTML = '';
+    sidebar.appendChild(handle);
+
+    if (!STATE.user) {
+        // TELA DE LOGIN
+        const loginContainer = document.createElement('div');
+        loginContainer.className = 'ap-login-container';
+        loginContainer.innerHTML = `
+            <div class="ap-login-logo">Auto-Proposal</div>
+            <div class="ap-login-subtitle">Faça login para começar a converter.</div>
+            
+            <form id="ap-login-form" class="ap-login-form">
+                <div class="ap-login-input-group">
+                    <label class="ap-login-label">E-mail</label>
+                    <input type="email" id="ap-login-email" class="ap-login-input" placeholder="seu@email.com" required>
+                </div>
+                <div class="ap-login-input-group">
+                    <label class="ap-login-label">Senha</label>
+                    <input type="password" id="ap-login-password" class="ap-login-input" placeholder="••••••••" required>
+                </div>
+                <div id="ap-login-error" class="ap-login-error">Credenciais inválidas.</div>
+                <button type="submit" id="ap-login-btn" class="ap-login-button">Entrar no Sistema</button>
+            </form>
+            <div class="ap-footer" style="margin-top: auto; padding-top: 20px;">v4.8 • Multi-User</div>
+        `;
+        sidebar.appendChild(loginContainer);
+
+        document.getElementById('ap-login-form').addEventListener('submit', handleLogin);
+    } else {
+        // TELA PRINCIPAL (PROJETOS)
+        sidebar.innerHTML += `
+            <div class="ap-header">
+                <div>
+                    <h2 style="margin-bottom: 2px;">Projetos em Potencial</h2>
+                    <span style="font-size: 11px; color: var(--ap-text-secondary);">Logado como: <b>${STATE.user.name}</b></span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="ap-settings-btn" class="ap-icon-btn" title="Configurações">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                    <button id="ap-logout-btn" class="ap-logout-btn" title="Sair">
+                        Sair
+                    </button>
+                </div>
+            </div>
+            <div id="ap-project-list" class="ap-content">
+                <div class="ap-empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    <p>Use o atalho para analisar.</p>
+                </div>
+            </div>
+            <div class="ap-footer">Auto-Proposal AI • v4.8</div>
+        `;
+
+        document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
+        document.getElementById('ap-logout-btn').addEventListener('click', handleLogout);
+        
+        // Re-renderiza a lista de projetos se houver
+        if (STATE.scrapedProjects.length > 0) {
+            renderProjects(STATE.scrapedProjects);
+        }
+    }
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('ap-login-email').value;
+    const password = document.getElementById('ap-login-password').value;
+    const btn = document.getElementById('ap-login-btn');
+    const errorEl = document.getElementById('ap-login-error');
+
+    btn.disabled = true;
+    btn.innerText = 'Autenticando...';
+    errorEl.style.display = 'none';
+
+    try {
+        const response = await fetch(`${STATE.settings.apiUrl}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            STATE.user = data.user;
+            chrome.storage.local.set({ 'ap_user': data.user });
+            renderSidebarContent();
+        } else {
+            errorEl.style.display = 'block';
+            errorEl.innerText = data.error || 'Erro ao fazer login.';
+        }
+    } catch (err) {
+        errorEl.style.display = 'block';
+        errorEl.innerText = 'Erro ao conectar com a API.';
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Entrar no Sistema';
+    }
+}
+
+function handleLogout() {
+    STATE.user = null;
+    chrome.storage.local.remove('ap_user');
+    renderSidebarContent();
+}
+
 function createSidebar() {
     if (document.getElementById('ap-sidebar')) return;
 
@@ -918,30 +1162,25 @@ function createSidebar() {
         <div id="ap-sidebar-handle" title="Abrir Auto-Proposal">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </div>
-        <div class="ap-header">
-            <h2>Projetos em Potencial</h2>
-            <button id="ap-settings-btn" class="ap-icon-btn" title="Configurações">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            </button>
-        </div>
-        <div id="ap-project-list" class="ap-content">
-            <div class="ap-empty-state">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px;"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                <p>Use o atalho para analisar.</p>
-            </div>
-        </div>
-        <div class="ap-footer">Auto-Proposal AI</div>
     `;
 
     document.body.appendChild(sidebar);
+    
+    // Verifica se já existe usuário salvo
+    chrome.storage.local.get(['ap_user'], (result) => {
+        if (result.ap_user) {
+            STATE.user = result.ap_user;
+        }
+        renderSidebarContent();
+    });
+
     document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => { e.stopPropagation(); openSidebar(); });
-    document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
 
     document.addEventListener('click', (e) => {
         const sidebar = document.getElementById('ap-sidebar');
         const handle = document.getElementById('ap-sidebar-handle');
         const settingsModal = document.getElementById('ap-modal-overlay');
-        if (STATE.isSidebarOpen && !sidebar.contains(e.target) && !handle.contains(e.target) && !settingsModal.contains(e.target)) {
+        if (STATE.isSidebarOpen && !sidebar.contains(e.target) && !handle.contains(e.target) && settingsModal && !settingsModal.contains(e.target)) {
             closeSidebar();
         }
     });
@@ -953,7 +1192,7 @@ function createSettingsModal() {
     const overlay = document.createElement('div');
     overlay.id = 'ap-modal-overlay';
     overlay.innerHTML = `
-        <div class="ap-modal">
+        <div class="ap-modal" style="width: 540px;">
             <div class="ap-modal-header">
                 <button id="ap-close-modal" class="ap-close-btn" title="Fechar"></button>
                 <h3>Configurações</h3>
@@ -961,17 +1200,96 @@ function createSettingsModal() {
             </div>
             
             <div class="ap-modal-body">
-                <div class="ap-section-divider"></div>
-                        <option value="openai/gpt-oss-20b">GPT OSS 20B (Muito Rápido)</option>
-                        <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick 17B (Preview)</option>
-                        <option value="qwen/qwen3-32b">Qwen3 32B (Preview)</option>
-                        <option value="moonshotai/kimi-k2-instruct">Kimi K2 Instruct (Preview)</option>
-                        <option value="moonshotai/kimi-k2-instruct-0905">Kimi K2 Instruct 0905 (Preview)</option>
+
+                <!-- ═══ IA PREFERIDA ═══ -->
+                <div class="ap-input-group">
+                    <label>🚀 IA Preferida (Primária)</label>
+                    <select id="ap-preferred-provider" class="ap-select">
+                        <option value="openai">OpenAI (GPT)</option>
+                        <option value="claude">Anthropic (Claude)</option>
+                        <option value="gemini">Google (Gemini) - Grátis</option>
+                        <option value="groq">Groq (Llama/Mixtral) - Grátis</option>
                     </select>
+                    <small style="color: var(--ap-text-tertiary); font-size: 10px;">Se falhar, o sistema tenta os demais providers automaticamente.</small>
                 </div>
 
                 <div class="ap-section-divider"></div>
 
+                <!-- ═══ SEÇÕES DINÂMICAS ═══ -->
+                <div id="ap-section-openai" class="ap-provider-section">
+                    <div class="ap-input-group">
+                        <label>Modelo OpenAI (Gerenciado via Backend)</label>
+                        <select id="ap-openai-model" class="ap-select">
+                            <option value="gpt-4o-mini">GPT-4o Mini (Ultra Barato)</option>
+                            <option value="gpt-4o">GPT-4o (Equilibrado)</option>
+                            <option value="gpt-5.5">GPT-5.5 (Novo Flagship)</option>
+                            <option value="gpt-5.5-pro">GPT-5.5 Pro (Potência Máxima)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="ap-section-claude" class="ap-provider-section ap-hidden">
+                    <div class="ap-input-group">
+                        <label>Modelo Claude (Gerenciado via Backend)</label>
+                        <select id="ap-claude-model" class="ap-select">
+                            <option value="claude-haiku-4-5">Claude Haiku 4.5 (Rápido)</option>
+                            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (Recomendado)</option>
+                            <option value="claude-opus-4-7">Claude Opus 4.7 (Poderoso)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="ap-section-gemini" class="ap-provider-section ap-hidden">
+                    <div class="ap-input-group">
+                        <label>🔑 Google Gemini API Keys (Grátis)</label>
+                        <textarea id="ap-gemini-keys" class="ap-textarea" rows="2" placeholder="AIzaSy..."></textarea>
+                    </div>
+                </div>
+
+                <div id="ap-section-groq" class="ap-provider-section ap-hidden">
+                    <div class="ap-input-group">
+                        <label>⚡ Groq API Keys (Grátis)</label>
+                        <textarea id="ap-groq-keys" class="ap-textarea" rows="2" placeholder="gsk_..."></textarea>
+                    </div>
+                </div>
+
+                <div class="ap-section-divider"></div>
+
+                <!-- ═══ TABELA DE CUSTOS EXPANDIDA ═══ -->
+                <div class="ap-input-group">
+                    <label>💰 Comparativo de Custos (USD)</label>
+                    <div style="background: rgba(0,0,0,0.3); border-radius: 10px; padding: 12px; border: 1px solid rgba(255,255,255,0.06); overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: rgba(255,255,255,0.8);">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                                    <th style="text-align: left; padding: 6px 4px; color: rgba(255,255,255,0.5); font-weight: 500;">Modelo</th>
+                                    <th style="text-align: right; padding: 6px 4px; color: rgba(255,255,255,0.5); font-weight: 500;">100 Envios</th>
+                                    <th style="text-align: right; padding: 6px 4px; color: rgba(255,255,255,0.5); font-weight: 500;">300 Envios</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="padding: 5px 4px;">🟢 Gemini / Groq</td><td style="text-align: right; padding: 5px 4px; color: #30D158;">$0,00</td><td style="text-align: right; padding: 5px 4px; color: #30D158; font-weight: 600;">$0,00</td></tr>
+                                
+                                <tr style="border-top: 1px solid rgba(255,255,255,0.06);"><td style="padding: 5px 4px;">🔵 GPT-4o Mini</td><td style="text-align: right; padding: 5px 4px;">$0,10</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #5CB8FF;">$0,31</td></tr>
+                                <tr><td style="padding: 5px 4px;">🔵 GPT-4o</td><td style="text-align: right; padding: 5px 4px;">$1,70</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #5CB8FF;">$5,10</td></tr>
+                                <tr><td style="padding: 5px 4px;">🔵 GPT-5.5</td><td style="text-align: right; padding: 5px 4px;">$4,10</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #5CB8FF;">$12,30</td></tr>
+                                <tr><td style="padding: 5px 4px;">🔵 GPT-5.5 Pro</td><td style="text-align: right; padding: 5px 4px;">$24,60</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #5CB8FF;">$73,80</td></tr>
+                                
+                                <tr style="border-top: 1px solid rgba(255,255,255,0.06);"><td style="padding: 5px 4px;">🟣 Haiku 4.5</td><td style="text-align: right; padding: 5px 4px;">$0,75</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #BF5AF2;">$2,25</td></tr>
+                                <tr><td style="padding: 5px 4px;">🟣 Sonnet 4.6</td><td style="text-align: right; padding: 5px 4px;">$2,25</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #BF5AF2;">$6,75</td></tr>
+                                <tr><td style="padding: 5px 4px;">🟣 Opus 4.7</td><td style="text-align: right; padding: 5px 4px;">$3,75</td><td style="text-align: right; padding: 5px 4px; font-weight: 600; color: #BF5AF2;">$11,25</td></tr>
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 8px; font-size: 9px; color: var(--ap-text-tertiary); line-height: 1.4;">
+                            * Estimativa base: 4.000 tokens input + 700 tokens output por proposta.<br>
+                            * Modelos Gemini/Groq dependem de limites de cota gratuita (RPM).
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ap-section-divider"></div>
+
+                <!-- ═══ PLATAFORMA & PROMPTS ═══ -->
                 <div class="ap-input-group">
                     <label>🌐 Plataforma Ativa</label>
                     <select id="ap-platform-select" class="ap-select">
@@ -1004,6 +1322,20 @@ function createSettingsModal() {
                         <span>Gerar Proposta (Bid)</span>
                         <button id="ap-shortcut-generate" class="ap-shortcut-btn">Shift + G</button>
                     </div>
+                </div>
+
+                <div class="ap-section-divider"></div>
+
+                <!-- ═══ CONFIGURAÇÃO DO BACKEND ═══ -->
+                <div class="ap-input-group">
+                    <label>🔌 Conexão com sua API (Opcional)</label>
+                    <input type="text" id="ap-api-url" class="ap-input" placeholder="https://seu-dominio.com">
+                    <label class="ap-toggle" style="margin-top: 10px;">
+                        <input type="checkbox" id="ap-use-backend">
+                        <div class="ap-toggle-track"><div class="ap-toggle-thumb"></div></div>
+                        <span class="ap-toggle-label">Usar Backend para Inteligência e BI</span>
+                    </label>
+                    <small style="color: var(--ap-text-tertiary); font-size: 10px; display: block; margin-top: 4px;">Ativando, a extensão enviará as propostas para sua API salvar no Postgres.</small>
                 </div>
 
                 <div class="ap-section-divider"></div>
@@ -1051,7 +1383,7 @@ function createSettingsModal() {
     const btnGenerate = document.getElementById('ap-shortcut-generate');
     btnGenerate.addEventListener('click', () => recordShortcut('generate', btnGenerate));
 
-    // Configurações de API Key agora são internas (Cluster)
+    // Configurações de API Cluster
 
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettings(); });
 }
@@ -1084,12 +1416,40 @@ function closeSidebar() {
 }
 
 function openSettings() {
+    const geminiKeys = STATE.settings.geminiKeys || [];
+    const groqKeys = STATE.settings.groqKeys || [];
+    const openaiKeys = STATE.settings.openaiKeys || [];
+    const claudeKeys = STATE.settings.claudeKeys || [];
+
+    document.getElementById('ap-gemini-keys').value = (STATE.settings.geminiKeys || []).join('\n');
+    document.getElementById('ap-groq-keys').value = (STATE.settings.groqKeys || []).join('\n');
+
+    // Modelos e provider preferido
+    document.getElementById('ap-openai-model').value = STATE.settings.openaiModel || 'gpt-4o-mini';
+    document.getElementById('ap-claude-model').value = STATE.settings.claudeModel || 'claude-haiku-4-5';
+    document.getElementById('ap-preferred-provider').value = STATE.settings.preferredProvider || 'openai';
+
+    // Função para alternar visibilidade das seções
+    const updateVisibleSections = (provider) => {
+        document.querySelectorAll('.ap-provider-section').forEach(s => s.classList.add('ap-hidden'));
+        const activeSection = document.getElementById(`ap-section-${provider}`);
+        if (activeSection) activeSection.classList.remove('ap-hidden');
+    };
+
+    updateVisibleSections(STATE.settings.preferredProvider || 'openai');
+
+    document.getElementById('ap-preferred-provider').addEventListener('change', (e) => {
+        updateVisibleSections(e.target.value);
+    });
+
     const platform = STATE.settings.activePlatform || '99freelas';
     document.getElementById('ap-platform-select').value = platform;
     document.getElementById('ap-user-profile').value = STATE.settings[`userProfile_${platform}`] || STATE.settings.userProfile || '';
     document.getElementById('ap-proposal-prompt').value = STATE.settings[`proposalPrompt_${platform}`] || STATE.settings.proposalPrompt || '';
 
     document.getElementById('ap-auto-mode').checked = STATE.settings.autoProposalMode;
+    document.getElementById('ap-api-url').value = STATE.settings.apiUrl || 'http://localhost:3000';
+    document.getElementById('ap-use-backend').checked = STATE.settings.useBackend || false;
 
     // Garante que as chaves existem antes de acessar
     const scAnalyze = STATE.settings.shortcuts.analyze || { modifier: 'Shift', key: 'P' };
@@ -1097,8 +1457,6 @@ function openSettings() {
 
     document.getElementById('ap-shortcut-analyze').innerText = `${scAnalyze.modifier} + ${scAnalyze.key}`;
     document.getElementById('ap-shortcut-generate').innerText = `${scGenerate.modifier} + ${scGenerate.key}`;
-
-    // Atualizar estados visuais
 
     document.getElementById('ap-modal-overlay').classList.add('show');
 }
@@ -1108,11 +1466,23 @@ function closeSettings() {
 }
 
 function saveSettings() {
-    // Configurações agora são internas
+    const geminiKeysRaw = document.getElementById('ap-gemini-keys').value;
+    const groqKeysRaw = document.getElementById('ap-groq-keys').value;
+    
+    // Converte texto em array, removendo espaços e linhas vazias
+    const geminiKeys = geminiKeysRaw.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+    const groqKeys = groqKeysRaw.split('\n').map(k => k.trim()).filter(k => k.length > 0);
+
+    const openaiModel = document.getElementById('ap-openai-model').value;
+    const claudeModel = document.getElementById('ap-claude-model').value;
+    const preferredProvider = document.getElementById('ap-preferred-provider').value;
+
     const activePlatform = document.getElementById('ap-platform-select').value;
     const userProfile = document.getElementById('ap-user-profile').value.trim();
     const proposalPrompt = document.getElementById('ap-proposal-prompt').value.trim();
     const autoProposalMode = document.getElementById('ap-auto-mode').checked;
+    const apiUrl = document.getElementById('ap-api-url').value.trim();
+    const useBackend = document.getElementById('ap-use-backend').checked;
 
     const shortcuts = STATE.settings.shortcuts;
 
@@ -1123,10 +1493,17 @@ function saveSettings() {
     // Atualiza o estado global
     STATE.settings = {
         ...STATE.settings,
+        geminiKeys,
+        groqKeys,
+        openaiModel,
+        claudeModel,
+        preferredProvider,
         activePlatform,
         userProfile,
         proposalPrompt,
         autoProposalMode,
+        apiUrl,
+        useBackend,
         shortcuts
     };
 
@@ -1342,12 +1719,14 @@ function renderProjectCards(filteredProjects) {
 }
 
 async function runProjectAnalysis() {
-    // Verificar se tem alguma API Key configurada
-    const hasGemini = STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0;
-    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+    // Verificar se tem alguma API Key configurada (Cluster ou Solo)
+    const hasGemini = (STATE.settings.geminiKeys && STATE.settings.geminiKeys.length > 0) || (STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0);
+    const hasGroq = (STATE.settings.groqKeys && STATE.settings.groqKeys.length > 0) || (STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0);
+    const hasOpenAI = STATE.settings.openaiKeys && STATE.settings.openaiKeys.length > 0;
+    const hasClaude = STATE.settings.claudeKeys && STATE.settings.claudeKeys.length > 0;
 
-    if (!hasGemini && !hasGroq) {
-        showToast("⚠️ Configure uma API Key (Gemini ou Groq).");
+    if (!hasGemini && !hasGroq && !hasOpenAI && !hasClaude) {
+        showToast("⚠️ Configure ao menos uma API Key.");
         openSettings();
         return;
     }
@@ -1361,16 +1740,20 @@ async function runProjectAnalysis() {
     const projectsPayload = projects.map(p => ({ id: p.id, title: p.title, description: p.description }));
     const finalInstruction = `${SYSTEM_INSTRUCTION_TEMPLATE}\n${STATE.settings.userProfile}`;
 
-    // Determina qual provider usar
-    const useGroq = hasGroq;
-    const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
-    const activeProvider = useGroq ? 'groq' : 'gemini';
-
     chrome.runtime.sendMessage({
         action: "aiRequest",
         taskType: "FILTER_PROJECTS",
-        apiKey: STATE.settings.apiKey,
-        groqApiKey: STATE.settings.groqApiKey,
+        userId: STATE.user?.id,
+        userName: STATE.user?.name,
+        preferredProvider: STATE.settings.preferredProvider,
+        apiUrl: STATE.settings.apiUrl,
+        useBackend: STATE.settings.useBackend,
+        geminiKeys: STATE.settings.geminiKeys || (STATE.settings.apiKey ? [STATE.settings.apiKey] : []),
+        groqKeys: STATE.settings.groqKeys || (STATE.settings.groqApiKey ? [STATE.settings.groqApiKey] : []),
+        openaiKeys: STATE.settings.openaiKeys,
+        claudeKeys: STATE.settings.claudeKeys,
+        openaiModel: STATE.settings.openaiModel,
+        claudeModel: STATE.settings.claudeModel,
         groqModel: STATE.settings.groqModel,
         systemInstruction: finalInstruction,
         userPrompt: JSON.stringify(projectsPayload)
@@ -1692,12 +2075,15 @@ function runProposalGeneration() {
         return;
     }
 
-    // Verificar se tem alguma API Key configurada
-    const hasGemini = STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0;
-    const hasGroq = STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0;
+    // Verificar se tem alguma API Key configurada ou se usa Backend
+    const hasGemini = (STATE.settings.geminiKeys && STATE.settings.geminiKeys.length > 0) || (STATE.settings.apiKey && STATE.settings.apiKey.trim().length > 0);
+    const hasGroq = (STATE.settings.groqKeys && STATE.settings.groqKeys.length > 0) || (STATE.settings.groqApiKey && STATE.settings.groqApiKey.trim().length > 0);
+    const hasOpenAI = STATE.settings.openaiKeys && STATE.settings.openaiKeys.length > 0;
+    const hasClaude = STATE.settings.claudeKeys && STATE.settings.claudeKeys.length > 0;
+    const isBackendEnabled = STATE.settings.useBackend && STATE.settings.apiUrl;
 
-    if (!hasGemini && !hasGroq) {
-        showToast("⚠️ Configure uma API Key (Gemini ou Groq).");
+    if (!hasGemini && !hasGroq && !hasOpenAI && !hasClaude && !isBackendEnabled) {
+        showToast("⚠️ Configure ao menos uma API Key ou ative o Backend.");
         openSettings();
         return;
     }
@@ -1724,7 +2110,7 @@ function runProposalGeneration() {
 
     IMPORTANTE: 
     - O campo "message" deve ser uma proposta COMPLETA, PROFISSIONAL e EXTENSA (2000-2500 caracteres).
-    - Use quebras de linha double-n (\\n\\n) para separar parágrafos e listas.
+    - Use quebras de linha double-n (\\\\n\\\\n) para separar parágrafos e listas.
     - O campo "price" deve ser o valor TOTAL (Bruto) sugerido para o cliente pagar.
     - O preço deve ser sugerido na moeda ${context.currency || 'do projeto'}. 
     - Retorne apenas o valor numérico inteiro no campo "price".
@@ -1734,17 +2120,28 @@ function runProposalGeneration() {
 
     const systemInstruction = `${PROPOSAL_SYSTEM_INSTRUCTION}\nMEU PERFIL: ${STATE.settings.userProfile}`;
 
-    // Determina qual provider usar (usa variables hasGemini e hasGroq já declaradas acima)
-    const useGroq = hasGroq;
-    const activeApiKey = useGroq ? STATE.settings.groqApiKey : STATE.settings.apiKey;
-    const activeProvider = useGroq ? 'groq' : 'gemini';
-
-    // Chama API (Suporta fallback global Gemini -> Groq)
+    // Chama API (Suporta fallback global Gemini -> OpenAI -> Claude -> Groq)
     chrome.runtime.sendMessage({
         action: "aiRequest",
         taskType: "GENERATE_PROPOSAL",
-        apiKey: STATE.settings.apiKey,
-        groqApiKey: STATE.settings.groqApiKey,
+        userId: STATE.user?.id,
+        userName: STATE.user?.name,
+        preferredProvider: STATE.settings.preferredProvider,
+        apiUrl: STATE.settings.apiUrl,
+        useBackend: STATE.settings.useBackend,
+        platform: STATE.settings.activePlatform,
+        proposalData: {
+            title: context.clientName,
+            description: truncatedDescription,
+            value: context.avgValue,
+            currency: context.currency
+        },
+        geminiKeys: STATE.settings.geminiKeys || (STATE.settings.apiKey ? [STATE.settings.apiKey] : []),
+        groqKeys: STATE.settings.groqKeys || (STATE.settings.groqApiKey ? [STATE.settings.groqApiKey] : []),
+        openaiKeys: STATE.settings.openaiKeys,
+        claudeKeys: STATE.settings.claudeKeys,
+        openaiModel: STATE.settings.openaiModel,
+        claudeModel: STATE.settings.claudeModel,
         groqModel: STATE.settings.groqModel,
         systemInstruction: systemInstruction,
         userPrompt: userPrompt
@@ -1815,6 +2212,11 @@ function init() {
         'apiKey',
         'groqApiKey',
         'groqModel',
+        'openaiKeys',
+        'claudeKeys',
+        'openaiModel',
+        'claudeModel',
+        'preferredProvider',
         'activePlatform',
         'userProfile',
         'proposalPrompt',
@@ -1823,12 +2225,28 @@ function init() {
         'userProfile_freelancer',
         'proposalPrompt_freelancer',
         'shortcuts',
-        'autoProposalMode'
+        'autoProposalMode',
+        'apiUrl',
+        'useBackend',
+        'geminiKeys',
+        'groqKeys'
     ], (result) => {
-        // API Keys
+        // API Keys & Clusters
         if (result.apiKey) STATE.settings.apiKey = result.apiKey;
         if (result.groqApiKey) STATE.settings.groqApiKey = result.groqApiKey;
         if (result.groqModel) STATE.settings.groqModel = result.groqModel;
+        
+        if (result.geminiKeys) STATE.settings.geminiKeys = result.geminiKeys;
+        if (result.groqKeys) STATE.settings.groqKeys = result.groqKeys;
+        if (result.openaiKeys) STATE.settings.openaiKeys = result.openaiKeys;
+        if (result.claudeKeys) STATE.settings.claudeKeys = result.claudeKeys;
+
+        // Modelos e Preferências
+        if (result.openaiModel) STATE.settings.openaiModel = result.openaiModel;
+        if (result.claudeModel) STATE.settings.claudeModel = result.claudeModel;
+        if (result.preferredProvider) STATE.settings.preferredProvider = result.preferredProvider;
+        if (result.apiUrl) STATE.settings.apiUrl = result.apiUrl;
+        if (result.useBackend !== undefined) STATE.settings.useBackend = result.useBackend;
 
         // Plataforma ativa
         if (result.activePlatform) STATE.settings.activePlatform = result.activePlatform;
