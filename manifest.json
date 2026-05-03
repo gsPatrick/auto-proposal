@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Auto-Proposal AI (Sidebar Edition)",
   "description": "Sidebar inteligente para o 99freelas que filtra projetos e gera propostas usando o Gemini.",
-  "version": "2.0",
+  "version": "1.0.1",
   "permissions": [
     "activeTab",
     "storage"
@@ -36,5 +36,11 @@
   ],
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["patrick.png", "beatriz.png"],
+      "matches": ["*://www.99freelas.com.br/*", "*://www.freelancer.com/*"]
+    }
+  ]
 }

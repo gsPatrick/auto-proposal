@@ -1,7 +1,7 @@
 /**
  * content.js
  * 
- * Versão: 4.7 (Fix: Card Expansion Delay & Scroll)
+ * Versão: 1.0.1 (Fix: Card Expansion Delay & Scroll)
  * - Ajuste de CSS: Cards agora mostram "..." e só expandem após 0.6s de hover.
  * - Scroll: Reforçado comportamento de scroll na lista de projetos.
  */
@@ -179,12 +179,41 @@ function injectStyles() {
             height: 100%;
             padding: var(--ap-spacing-xl);
             text-align: center;
+            animation: ap-fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes ap-fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes ap-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes ap-checkmark {
+            0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(-45deg); opacity: 1; }
+            100% { transform: scale(1) rotate(-45deg); opacity: 1; }
+        }
+
+        .ap-login-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(10,132,255,0.2), rgba(94,92,230,0.2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border: 1px solid rgba(10,132,255,0.3);
         }
 
         .ap-login-logo {
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 800;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             background: var(--ap-accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -192,8 +221,9 @@ function injectStyles() {
 
         .ap-login-subtitle {
             color: var(--ap-text-secondary);
-            font-size: 14px;
+            font-size: 13px;
             margin-bottom: 32px;
+            line-height: 1.5;
         }
 
         .ap-login-form {
@@ -211,10 +241,12 @@ function injectStyles() {
         }
 
         .ap-login-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--ap-text-secondary);
             margin-left: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .ap-login-input {
@@ -222,10 +254,11 @@ function injectStyles() {
             background: rgba(255,255,255,0.04);
             border: 1px solid var(--ap-glass-border);
             border-radius: var(--ap-radius-md);
-            padding: 12px 16px;
+            padding: 14px 16px;
             color: white;
             font-size: 14px;
-            transition: all 0.2s;
+            transition: all 0.3s;
+            box-sizing: border-box;
         }
 
         .ap-login-input:focus {
@@ -236,32 +269,87 @@ function injectStyles() {
         }
 
         .ap-login-button {
-            margin-top: 12px;
+            margin-top: 8px;
             background: var(--ap-accent-gradient);
             border: none;
             border-radius: var(--ap-radius-md);
             padding: 14px;
             color: white;
             font-weight: 700;
+            font-size: 14px;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: var(--ap-shadow-sm);
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3);
+            letter-spacing: 0.02em;
         }
 
         .ap-login-button:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--ap-shadow-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
         }
 
         .ap-login-button:active {
             transform: translateY(0);
         }
 
+        .ap-login-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .ap-login-error {
             color: var(--ap-danger);
             font-size: 12px;
-            margin-top: 12px;
+            margin-top: 4px;
             display: none;
+            background: rgba(255, 69, 58, 0.1);
+            padding: 10px;
+            border-radius: var(--ap-radius-md);
+            border: 1px solid rgba(255, 69, 58, 0.2);
+        }
+
+        /* Success Screen */
+        .ap-success-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            animation: ap-fadeInUp 0.5s ease-out;
+        }
+
+        .ap-success-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #34c759, #30d158);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 30px rgba(52, 199, 89, 0.3);
+            animation: ap-pulse 1.5s ease-in-out infinite;
+        }
+
+        .ap-success-check {
+            width: 32px;
+            height: 16px;
+            border-left: 3px solid white;
+            border-bottom: 3px solid white;
+            animation: ap-checkmark 0.5s ease-out 0.2s both;
+        }
+
+        .ap-success-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 6px;
+        }
+
+        .ap-success-sub {
+            color: var(--ap-text-secondary);
+            font-size: 13px;
         }
 
         .ap-logout-btn {
@@ -282,6 +370,171 @@ function injectStyles() {
             background: rgba(255, 69, 58, 0.1);
             color: var(--ap-danger);
             border-color: rgba(255, 69, 58, 0.2);
+        }
+
+        /* --- USER PROFILE HEADER --- */
+        .ap-user-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ap-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 2px solid rgba(10, 132, 255, 0.3);
+            flex-shrink: 0;
+        }
+
+        .ap-user-avatar-fallback {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #5e5ce6, #0a84ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 12px;
+            color: white;
+            flex-shrink: 0;
+        }
+
+        /* --- PROFILE SCREEN --- */
+        .ap-profile-screen {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: var(--ap-spacing-lg);
+            animation: ap-fadeInUp 0.4s ease-out;
+        }
+
+        .ap-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .ap-profile-back {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .ap-profile-back:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .ap-profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            object-fit: cover;
+            border: 2px solid rgba(10, 132, 255, 0.4);
+            margin: 0 auto 16px;
+            display: block;
+        }
+
+        .ap-profile-avatar-fallback {
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #5e5ce6, #0a84ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 24px;
+            color: white;
+            margin: 0 auto 16px;
+        }
+
+        .ap-profile-name {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .ap-profile-email {
+            text-align: center;
+            font-size: 12px;
+            color: var(--ap-text-secondary);
+            margin-bottom: 28px;
+        }
+
+        .ap-profile-section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--ap-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .ap-profile-form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .ap-profile-save {
+            margin-top: 8px;
+            background: var(--ap-accent-gradient);
+            border: none;
+            border-radius: var(--ap-radius-md);
+            padding: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3);
+        }
+
+        .ap-profile-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(10, 132, 255, 0.4);
+        }
+
+        .ap-profile-save:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .ap-profile-msg {
+            text-align: center;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: var(--ap-radius-md);
+            display: none;
+        }
+
+        .ap-profile-msg.success {
+            display: block;
+            color: #34c759;
+            background: rgba(52, 199, 89, 0.1);
+            border: 1px solid rgba(52, 199, 89, 0.2);
+        }
+
+        .ap-profile-msg.error {
+            display: block;
+            color: var(--ap-danger);
+            background: rgba(255, 69, 58, 0.1);
+            border: 1px solid rgba(255, 69, 58, 0.2);
         }
 
         /* --- SIDEBAR CONTAINER (macOS Vibrancy) --- */
@@ -1045,17 +1298,30 @@ function renderSidebarContent() {
     if (!sidebar) return;
 
     // Remove conteúdo anterior mantendo o handle
-    const handle = document.getElementById('ap-sidebar-handle');
-    sidebar.innerHTML = '';
-    sidebar.appendChild(handle);
+    let contentContainer = document.getElementById('ap-sidebar-content');
+    if (!contentContainer) {
+        contentContainer = document.createElement('div');
+        contentContainer.id = 'ap-sidebar-content';
+        contentContainer.style.height = '100%';
+        contentContainer.style.display = 'flex';
+        contentContainer.style.flexDirection = 'column';
+        sidebar.appendChild(contentContainer);
+    }
+    contentContainer.innerHTML = '';
 
     if (!STATE.user) {
         // TELA DE LOGIN
         const loginContainer = document.createElement('div');
         loginContainer.className = 'ap-login-container';
         loginContainer.innerHTML = `
+            <div class="ap-login-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(10,132,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
             <div class="ap-login-logo">Auto-Proposal</div>
-            <div class="ap-login-subtitle">Faça login para começar a converter.</div>
+            <div class="ap-login-subtitle">Autentique-se para acessar<br>o sistema de propostas inteligentes.</div>
             
             <form id="ap-login-form" class="ap-login-form">
                 <div class="ap-login-input-group">
@@ -1069,24 +1335,40 @@ function renderSidebarContent() {
                 <div id="ap-login-error" class="ap-login-error">Credenciais inválidas.</div>
                 <button type="submit" id="ap-login-btn" class="ap-login-button">Entrar no Sistema</button>
             </form>
-            <div class="ap-footer" style="margin-top: auto; padding-top: 20px;">v4.8 • Multi-User</div>
+            <div class="ap-footer" style="margin-top: auto; padding-top: 20px;">v1.0.1 • Multi-User</div>
         `;
-        sidebar.appendChild(loginContainer);
+        contentContainer.appendChild(loginContainer);
 
         document.getElementById('ap-login-form').addEventListener('submit', handleLogin);
     } else {
         // TELA PRINCIPAL (PROJETOS)
-        sidebar.innerHTML += `
+        const userPhotoUrl = getUserPhotoUrl(STATE.user.email);
+        const avatarHtml = userPhotoUrl 
+            ? `<img src="${userPhotoUrl}" alt="" class="ap-user-avatar">` 
+            : `<div class="ap-user-avatar-fallback">${STATE.user.name.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>`;
+
+        const mainScreen = document.createElement('div');
+        mainScreen.style.display = 'flex';
+        mainScreen.style.flexDirection = 'column';
+        mainScreen.style.height = '100%';
+        mainScreen.innerHTML = `
             <div class="ap-header">
-                <div>
-                    <h2 style="margin-bottom: 2px;">Projetos em Potencial</h2>
-                    <span style="font-size: 11px; color: var(--ap-text-secondary);">Logado como: <b>${STATE.user.name}</b></span>
+                <div class="ap-user-header">
+                    ${avatarHtml}
+                    <div>
+                        <h2 style="margin-bottom: 2px; font-size: 15px;">Projetos em Potencial</h2>
+                        <span style="font-size: 11px; color: var(--ap-text-secondary);">${STATE.user.name}</span>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
+                <div style="display: flex; gap: 6px;">
+                    <button id="ap-profile-btn" class="ap-icon-btn" title="Meu Perfil">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    </button>
                     <button id="ap-settings-btn" class="ap-icon-btn" title="Configurações">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
                     </button>
                     <button id="ap-logout-btn" class="ap-logout-btn" title="Sair">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                         Sair
                     </button>
                 </div>
@@ -1097,11 +1379,13 @@ function renderSidebarContent() {
                     <p>Use o atalho para analisar.</p>
                 </div>
             </div>
-            <div class="ap-footer">Auto-Proposal AI • v4.8</div>
+            <div class="ap-footer">Auto-Proposal AI • v1.0.1</div>
         `;
+        contentContainer.appendChild(mainScreen);
 
-        document.getElementById('ap-settings-btn').addEventListener('click', openSettings);
-        document.getElementById('ap-logout-btn').addEventListener('click', handleLogout);
+        document.getElementById('ap-profile-btn').addEventListener('click', (e) => { e.stopPropagation(); openProfile(); });
+        document.getElementById('ap-settings-btn').addEventListener('click', (e) => { e.stopPropagation(); openSettings(); });
+        document.getElementById('ap-logout-btn').addEventListener('click', (e) => { e.stopPropagation(); handleLogout(); });
         
         // Re-renderiza a lista de projetos se houver
         if (STATE.scrapedProjects.length > 0) {
@@ -1133,7 +1417,28 @@ async function handleLogin(e) {
         if (data.success) {
             STATE.user = data.user;
             chrome.storage.local.set({ 'ap_user': data.user });
-            renderSidebarContent();
+
+            // Animação de sucesso
+            const sidebar = document.getElementById('ap-sidebar');
+            let contentContainer = document.getElementById('ap-sidebar-content');
+            if (contentContainer) contentContainer.innerHTML = '';
+            
+            const successEl = document.createElement('div');
+            successEl.className = 'ap-success-screen';
+            successEl.innerHTML = `
+                <div class="ap-success-circle"><div class="ap-success-check"></div></div>
+                <div class="ap-success-title">Bem-vindo, ${data.user.name.split(' ')[0]}!</div>
+                <div class="ap-success-sub">Autenticação realizada com sucesso.</div>
+            `;
+            if (contentContainer) {
+                contentContainer.appendChild(successEl);
+            } else {
+                sidebar.appendChild(successEl);
+            }
+            setTimeout(() => {
+                successEl.remove();
+                renderSidebarContent();
+            }, 2000);
         } else {
             errorEl.style.display = 'block';
             errorEl.innerText = data.error || 'Erro ao fazer login.';
@@ -1166,6 +1471,9 @@ function createSidebar() {
 
     document.body.appendChild(sidebar);
     
+    // Impede que qualquer clique dentro da sidebar feche ela mesma
+    sidebar.addEventListener('click', (e) => e.stopPropagation());
+    
     // Verifica se já existe usuário salvo
     chrome.storage.local.get(['ap_user'], (result) => {
         if (result.ap_user) {
@@ -1174,7 +1482,7 @@ function createSidebar() {
         renderSidebarContent();
     });
 
-    document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => { e.stopPropagation(); openSidebar(); });
+    document.getElementById('ap-sidebar-handle').addEventListener('click', (e) => { e.stopPropagation(); if (STATE.isSidebarOpen) closeSidebar(); else openSidebar(); });
 
     document.addEventListener('click', (e) => {
         const sidebar = document.getElementById('ap-sidebar');
@@ -2281,6 +2589,9 @@ function init() {
         }
 
         console.log('[Auto-Proposal] Settings carregadas:', STATE.settings);
+        
+        // Verifica atualizações
+        checkForUpdates();
     });
 
     // Mouse Hover Edge Detection
@@ -2382,6 +2693,141 @@ function init() {
             }
         }
     }, 1000); // Intervalo de checagem mais rápido (1s)
+}
+
+function getUserPhotoUrl(email) {
+    const photos = {
+        'patrick@gmail.com': chrome.runtime.getURL('patrick.png'),
+        'beatrizmello@gmail.com': chrome.runtime.getURL('beatriz.png'),
+        'patricksiqueira.developer@gmail.com': chrome.runtime.getURL('patrick.png')
+    };
+    return photos[email] || null;
+}
+
+function openProfile() {
+    const sidebar = document.getElementById('ap-sidebar');
+    let contentContainer = document.getElementById('ap-sidebar-content');
+    if (!contentContainer) {
+        contentContainer = document.createElement('div');
+        contentContainer.id = 'ap-sidebar-content';
+        contentContainer.style.height = '100%';
+        sidebar.appendChild(contentContainer);
+    }
+    contentContainer.innerHTML = '';
+
+    const userPhotoUrl = getUserPhotoUrl(STATE.user.email);
+    const avatarHtml = userPhotoUrl 
+        ? `<img src="${userPhotoUrl}" alt="" class="ap-profile-avatar">` 
+        : `<div class="ap-profile-avatar-fallback">${STATE.user.name.split(' ').map(n=>n[0]).join('').substring(0,2)}</div>`;
+
+    const profileContainer = document.createElement('div');
+    profileContainer.className = 'ap-profile-screen';
+    profileContainer.innerHTML = `
+        <div class="ap-profile-header">
+            <button id="ap-profile-back" class="ap-profile-back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            </button>
+            <h2 style="font-size: 18px; font-weight: 700; margin: 0;">Meu Perfil</h2>
+        </div>
+
+        ${avatarHtml}
+        <div class="ap-profile-name">${STATE.user.name}</div>
+        <div class="ap-profile-email">${STATE.user.email}</div>
+
+        <div class="ap-profile-section-title">Segurança</div>
+        <form id="ap-profile-form" class="ap-profile-form">
+            <div class="ap-login-input-group">
+                <label class="ap-login-label">Nova Senha</label>
+                <input type="password" id="ap-profile-password" class="ap-login-input" placeholder="••••••••" required>
+            </div>
+            <div id="ap-profile-msg" class="ap-profile-msg"></div>
+            <button type="submit" id="ap-profile-save" class="ap-profile-save">Salvar Alterações</button>
+        </form>
+    `;
+    contentContainer.appendChild(profileContainer);
+
+    document.getElementById('ap-profile-back').addEventListener('click', (e) => { e.stopPropagation(); renderSidebarContent(); });
+    document.getElementById('ap-profile-form').addEventListener('submit', handleUpdateProfile);
+    
+    // Impede que cliques no formulário fechem a sidebar
+    profileContainer.addEventListener('click', (e) => e.stopPropagation());
+}
+
+async function handleUpdateProfile(e) {
+    e.preventDefault();
+    const password = document.getElementById('ap-profile-password').value;
+    const btn = document.getElementById('ap-profile-save');
+    const msg = document.getElementById('ap-profile-msg');
+
+    btn.disabled = true;
+    btn.innerText = 'Salvando...';
+    msg.className = 'ap-profile-msg';
+
+    try {
+        const response = await fetch(`${STATE.settings.apiUrl}/api/auth/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                id: STATE.user.id,
+                name: STATE.user.name,
+                email: STATE.user.email,
+                password 
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            msg.innerText = 'Perfil atualizado com sucesso!';
+            msg.classList.add('success');
+            STATE.user.password = password;
+            chrome.storage.local.set({ 'ap_user': STATE.user });
+            setTimeout(renderSidebarContent, 1500);
+        } else {
+            msg.innerText = data.error || 'Erro ao atualizar.';
+            msg.classList.add('error');
+        }
+    } catch (err) {
+        msg.innerText = 'Erro ao conectar com a API.';
+        msg.classList.add('error');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Salvar Alterações';
+    }
+}
+
+async function checkForUpdates() {
+    try {
+        const response = await fetch('https://geral-auto-proposal-dashboard.r954jc.easypanel.host/version.json');
+        const data = await response.json();
+        const currentVersion = "1.0.1";
+
+        if (data.version > currentVersion) {
+            const sidebar = document.getElementById('ap-sidebar');
+            const updateBanner = document.createElement('div');
+            updateBanner.style.cssText = `
+                background: var(--ap-accent-gradient);
+                color: white;
+                padding: 10px;
+                font-size: 12px;
+                text-align: center;
+                cursor: pointer;
+                font-weight: 700;
+                animation: ap-fadeInUp 0.5s ease-out;
+                border-radius: 0 0 12px 12px;
+                box-shadow: 0 4px 15px rgba(10,132,255,0.3);
+            `;
+            updateBanner.innerHTML = `🚀 Nova Versão ${data.version} disponível! Clique para baixar.`;
+            updateBanner.onclick = () => window.open(data.downloadUrl, '_blank');
+            
+            const header = document.querySelector('.ap-header');
+            if (header) {
+                header.parentNode.insertBefore(updateBanner, header.nextSibling);
+            }
+        }
+    } catch (err) {
+        console.error('[Auto-Proposal] Erro ao verificar atualizações:', err);
+    }
 }
 
 if (document.readyState === 'loading') {
